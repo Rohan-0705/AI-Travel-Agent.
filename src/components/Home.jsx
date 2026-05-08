@@ -846,7 +846,7 @@ const Home = () => {
           />
         </div>
       </div>
-      <main className="grid h-[100dvh] min-h-0 w-full grid-cols-1 items-stretch gap-3 overflow-hidden p-0 sm:p-3 lg:h-screen lg:grid-cols-[340px_minmax(0,1fr)_410px] lg:p-3 xl:grid-cols-[380px_minmax(0,1fr)_460px] 2xl:grid-cols-[420px_minmax(0,1fr)_520px]">
+      <main className="grid h-[100dvh] min-h-0 w-full grid-cols-1 items-stretch gap-2 overflow-hidden p-0 sm:p-2 lg:h-screen lg:grid-cols-[290px_minmax(0,1fr)_330px] xl:grid-cols-[310px_minmax(0,1fr)_360px] 2xl:grid-cols-[330px_minmax(0,1fr)_390px]">
         <div className="hidden lg:order-1 lg:block">
           <Sidebar
             savedTrips={savedTrips}

@@ -96,7 +96,7 @@ const InputBox = ({
   return (
     <form
       onSubmit={handleSubmit}
-      className="sticky bottom-0 z-20 shrink-0 overflow-hidden border-t border-slate-200 bg-white/95 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:p-4"
+      className="sticky bottom-0 z-20 shrink-0 overflow-hidden border-t border-slate-200 bg-white/95 p-2 shadow-[0_-10px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:p-3"
     >
       <div className="w-full max-w-none">
         {quickPrompts.length ? (
@@ -115,13 +115,13 @@ const InputBox = ({
           </div>
         ) : null}
 
-        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-[#f7faf8] p-1.5 focus-within:border-[#0f8f83] focus-within:ring-2 focus-within:ring-[#bdeee6] sm:gap-2 sm:p-2">
+        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-[#f7faf8] p-1.5 focus-within:border-[#0f8f83] focus-within:ring-2 focus-within:ring-[#bdeee6]">
           <button
             type="button"
             title={isListening ? "Stop listening" : "Voice input"}
             aria-label={isListening ? "Stop listening" : "Voice input"}
             onClick={handleVoiceInput}
-            className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:h-11 sm:w-11 ${
+            className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f8f83] ${
               isListening
                 ? "bg-[#e8f8f5] text-[#0f8f83]"
                 : "text-slate-500 hover:text-[#0f8f83]"
@@ -136,20 +136,20 @@ const InputBox = ({
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder="Ask for hotels, routes, food, or an itinerary"
-            className="h-10 max-h-10 min-w-0 flex-1 resize-none overflow-hidden bg-transparent py-2 text-[1rem] leading-6 text-slate-950 outline-none placeholder:text-slate-400 sm:h-11 sm:max-h-11 sm:text-[1.08rem] sm:leading-7"
+            className="h-10 max-h-10 min-w-0 flex-1 resize-none overflow-hidden bg-transparent py-2 text-[0.98rem] leading-6 text-slate-950 outline-none placeholder:text-slate-400"
           />
           <button
             type="button"
             title="Trip filters"
             aria-label="Trip filters"
-            className="hidden h-10 w-10 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-white hover:text-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:grid sm:h-11 sm:w-11"
+            className="hidden h-10 w-10 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-white hover:text-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:grid"
           >
             <SlidersHorizontal size={18} />
           </button>
           <button
             type="submit"
             disabled={!input.trim() || disabled}
-            className="flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[#0f8f83] px-3 text-sm font-semibold text-white transition hover:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-[#0f8f83] disabled:bg-slate-300 disabled:text-slate-500 sm:h-11 sm:px-4 sm:text-base"
+            className="flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[#0f8f83] px-3 text-sm font-semibold text-white transition hover:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-[#0f8f83] disabled:bg-slate-300 disabled:text-slate-500"
           >
             <Send size={17} />
             <span className="hidden sm:inline">Send</span>

@@ -21,21 +21,21 @@ const Sidebar = ({
     >
       <div className="border-b border-white/10 p-4">
         <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-[#38d6c6] text-slate-950">
-            <Compass size={22} strokeWidth={2.4} />
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#38d6c6] text-slate-950">
+            <Compass size={20} strokeWidth={2.4} />
           </div>
           <div className="min-w-0">
             <p className="text-[0.92rem] font-semibold uppercase text-[#92a5a0]">
               Travel AI
             </p>
-            <h1 className="truncate text-xl font-semibold">Travel Planner</h1>
+            <h1 className="truncate text-lg font-semibold">Travel Planner</h1>
           </div>
         </div>
 
         <button
           type="button"
           onClick={onNewChat}
-          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-white text-base font-semibold text-slate-950 transition hover:bg-[#38d6c6] focus:outline-none focus:ring-2 focus:ring-[#38d6c6] focus:ring-offset-2 focus:ring-offset-[#101820]"
+          className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-white text-base font-semibold text-slate-950 transition hover:bg-[#38d6c6] focus:outline-none focus:ring-2 focus:ring-[#38d6c6] focus:ring-offset-2 focus:ring-offset-[#101820]"
         >
           <Plus size={18} />
           <span>New chat</span>

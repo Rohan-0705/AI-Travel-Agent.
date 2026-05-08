@@ -42,14 +42,14 @@ const ChatWindow = ({
   const [composerText, setComposerText] = useState("");
 
   return (
-    <section className="flex h-[100dvh] min-h-0 w-full max-w-full flex-col overflow-hidden rounded-none border border-slate-900/10 bg-white shadow-sm sm:h-[calc(100vh-1rem)] sm:rounded-xl lg:h-[calc(100vh-1.5rem)]">
-      <header className="shrink-0 border-b border-slate-200 bg-[#fbfdfb] p-3 sm:p-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-4">
+    <section className="flex h-[100dvh] min-h-0 w-full max-w-full flex-col overflow-hidden rounded-none border border-slate-900/10 bg-white shadow-sm sm:h-[calc(100vh-1rem)] sm:rounded-xl lg:h-[calc(100vh-1rem)]">
+      <header className="shrink-0 border-b border-slate-200 bg-[#fbfdfb] p-3 lg:p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase text-[#60746f] sm:text-sm">
               {livePlan ? "Current itinerary" : "Travel AI"}
             </p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-950 sm:text-4xl">
+            <h2 className="mt-1 text-2xl font-semibold leading-tight text-slate-950 sm:text-3xl">
               {destination}
             </h2>
           </div>
@@ -109,16 +109,16 @@ const ChatWindow = ({
         </div>
 
         <div
-          className={`mt-3 grid gap-2 sm:mt-4 ${
+          className={`mt-3 grid gap-2 ${
             livePlan
               ? "md:grid-cols-[minmax(280px,1.1fr)_minmax(180px,0.9fr)]"
               : ""
           }`}
         >
-          <section className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-4">
+          <section className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm lg:p-3">
             <div className="flex items-start gap-3">
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#e8f8f5] text-[#0f8f83] sm:h-11 sm:w-11">
-                <CalendarDays size={20} />
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#e8f8f5] text-[#0f8f83] lg:h-10 lg:w-10">
+                <CalendarDays size={18} />
               </span>
               <CalendarPicker
                 startValue={activeTrip.selectedStartDate}
@@ -153,7 +153,12 @@ const ChatWindow = ({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="planner-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-[#f7faf8] p-2 sm:p-4 xl:p-5">
+        <div
+          className={[
+            "planner-scrollbar min-h-0 flex-1 overflow-x-hidden bg-[#f7faf8]",
+            isEmptyChat ? "overflow-hidden p-3 lg:p-4" : "overflow-y-auto p-2 sm:p-4 xl:p-5",
+          ].join(" ")}
+        >
           <div className="flex w-full max-w-none flex-col gap-3 sm:gap-5">
             {isEmptyChat ? (
               <EmptyTravelState onDraftSelect={setComposerText} />
@@ -212,40 +217,40 @@ const starterPrompts = [
 
 const EmptyTravelState = ({ onDraftSelect }) => {
   return (
-    <div className="flex min-h-0 items-center justify-center py-5 sm:py-7">
-      <section className="w-full max-w-2xl min-w-0 px-1 text-center">
-        <div className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-[#e8f8f5] text-[#0f8f83] shadow-sm">
-          <Sparkles size={22} />
+    <div className="flex min-h-0 items-center justify-center">
+      <section className="w-full max-w-xl min-w-0 px-1 text-center">
+        <div className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-[#e8f8f5] text-[#0f8f83] shadow-sm">
+          <Sparkles size={20} />
         </div>
-        <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-[#60746f] sm:text-sm">
+        <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-[#60746f]">
           Start planning
         </p>
-        <h3 className="mt-2 text-2xl font-semibold leading-tight text-slate-950 sm:text-3xl lg:text-4xl">
+        <h3 className="mt-1.5 text-2xl font-semibold leading-tight text-slate-950 lg:text-3xl">
           Where should we go?
         </h3>
-        <p className="mx-auto mt-3 max-w-xl text-[0.95rem] leading-7 text-slate-600 sm:text-[1rem]">
+        <p className="mx-auto mt-2 max-w-lg text-[0.9rem] leading-6 text-slate-600">
           Ask for an itinerary, food guide, budget, route, weather, stays, or
           travel tips. The assistant will build the trip workspace after your first
           message.
         </p>
 
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {starterPrompts.map(({ title, prompt, description, icon: Icon }) => (
             <button
               key={prompt}
               type="button"
               onClick={() => onDraftSelect(prompt)}
-              className="group min-w-0 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-[#0f8f83] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:p-4"
+              className="group min-w-0 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-[#0f8f83] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0f8f83]"
             >
               <span className="flex items-start gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#f7faf8] text-[#0f8f83] transition group-hover:bg-[#e8f8f5]">
                   <Icon size={19} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-base font-semibold text-slate-950">
+                  <span className="block text-[0.98rem] font-semibold text-slate-950">
                     {title}
                   </span>
-                  <span className="mt-1 block text-[0.92rem] leading-6 text-slate-500 sm:text-[0.98rem]">
+                  <span className="mt-0.5 block text-[0.86rem] leading-5 text-slate-500">
                     {description}
                   </span>
                 </span>
