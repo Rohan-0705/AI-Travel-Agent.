@@ -21,7 +21,7 @@ const MessageBubble = ({ message }) => {
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[92%] rounded-lg bg-slate-950 px-3 py-2 text-[1.02rem] leading-8 text-white shadow-sm sm:max-w-[min(54rem,82%)] sm:px-4 sm:py-3 sm:text-[1.08rem] sm:leading-8">
+        <div className="max-w-[92%] rounded-lg bg-slate-950 px-3 py-2 text-[1rem] leading-7 text-white shadow-sm sm:max-w-[min(42rem,82%)] sm:px-4 sm:py-3">
           <div className="mb-1 flex items-center justify-end gap-2 text-sm font-semibold text-[#b7c9c4] sm:mb-2 sm:text-base">
             <span>You</span>
             <UserRound size={15} />
@@ -34,7 +34,7 @@ const MessageBubble = ({ message }) => {
 
   return (
     <div className="flex justify-start">
-      <div className="w-full max-w-[52rem] rounded-lg border border-slate-200 bg-white p-3 text-slate-700 shadow-sm sm:p-4">
+      <div className="w-full max-w-[42rem] rounded-lg border border-slate-200 bg-white p-3 text-slate-700 shadow-sm sm:p-4">
         <div className="mb-2 flex items-center justify-between gap-3 sm:mb-3">
           <div className="flex min-w-0 items-center gap-2 text-base font-semibold text-slate-950 sm:text-lg">
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#e8f8f5] text-[#0f8f83] sm:h-8 sm:w-8">
