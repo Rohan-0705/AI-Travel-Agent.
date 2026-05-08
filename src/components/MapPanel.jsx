@@ -5,7 +5,6 @@ import {
   ExternalLink,
   MapPinned,
   Navigation,
-  Search,
   ShieldCheck,
   Star,
   WalletCards,
@@ -263,13 +262,13 @@ const EmptyMapPanel = ({ drawer = false }) => {
   return (
     <aside
       className={[
-        "planner-scrollbar flex min-h-0 flex-col overflow-y-auto border border-slate-900/10 bg-white shadow-sm",
+        "flex min-h-0 flex-col overflow-hidden border border-slate-900/10 bg-white shadow-sm",
         drawer
           ? "h-full max-h-none rounded-none"
           : "max-h-[90vh] rounded-xl lg:h-[calc(100vh-1.5rem)] lg:max-h-none",
       ].join(" ")}
     >
-      <div className="border-b border-slate-200 p-3 sm:p-5">
+      <div className="shrink-0 border-b border-slate-200 p-3 sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase text-[#60746f]">
@@ -289,23 +288,23 @@ const EmptyMapPanel = ({ drawer = false }) => {
         </div>
       </div>
 
-      <div className="p-3 sm:p-5">
-        <div className="grid min-h-64 place-items-center rounded-lg border border-dashed border-slate-300 bg-[#f7faf8] p-5 text-center sm:min-h-80 2xl:min-h-96">
+      <div className="min-h-0 flex-1 p-3 sm:p-5">
+        <div className="grid min-h-[14rem] place-items-center rounded-lg border border-dashed border-slate-300 bg-[#f7faf8] p-4 text-center sm:min-h-[16rem]">
           <div>
-            <div className="mx-auto grid h-14 w-14 place-items-center rounded-xl bg-white text-[#0f8f83] shadow-sm">
-              <Compass size={26} />
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-white text-[#0f8f83] shadow-sm">
+              <Compass size={23} />
             </div>
-            <h3 className="mt-4 text-lg font-semibold text-slate-950">
+            <h3 className="mt-3 text-lg font-semibold text-slate-950">
               No destination selected yet
             </h3>
-            <p className="mx-auto mt-2 max-w-xs text-[0.98rem] leading-7 text-slate-600">
+            <p className="mx-auto mt-2 max-w-xs text-[0.95rem] leading-6 text-slate-600">
               Try "Plan Goa for 3 days" or "Mumbai food guide" to build a live
               travel workspace.
             </p>
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2">
+        <div className="mt-4 grid grid-cols-2 gap-2">
           {[
             { label: "Map", value: "Waiting", icon: MapPinned },
             { label: "Route", value: "After search", icon: Navigation },
@@ -314,43 +313,19 @@ const EmptyMapPanel = ({ drawer = false }) => {
           ].map(({ label, value, icon: Icon }) => (
             <div
               key={label}
-              className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3"
+              className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-3"
             >
-              <span className="flex items-center gap-2 text-[0.96rem] font-medium text-slate-600">
+              <span className="flex min-w-0 items-center gap-2 text-[0.92rem] font-medium text-slate-600">
                 <Icon size={15} className="text-[#0f8f83]" />
                 {label}
               </span>
-              <span className="rounded-md bg-[#f7faf8] px-2.5 py-1 text-xs font-semibold text-slate-500">
+              <span className="shrink-0 rounded-md bg-[#f7faf8] px-2 py-1 text-[0.7rem] font-semibold text-slate-500">
                 {value}
               </span>
             </div>
           ))}
         </div>
       </div>
-
-      <section className="border-t border-slate-200 p-3 sm:p-5">
-        <div className="flex items-center gap-2">
-          <Search size={18} className="text-[#0f8f83]" />
-          <h3 className="text-lg font-semibold text-slate-950">
-            What you can ask
-          </h3>
-        </div>
-        <div className="mt-4 grid gap-2">
-          {[
-            "Plan a city trip",
-            "Find local food",
-            "Estimate budget",
-            "Compare places",
-          ].map((item) => (
-            <div
-              key={item}
-              className="rounded-lg border border-slate-200 bg-[#fbfdfb] p-3 text-[0.96rem] font-medium text-slate-700"
-            >
-              {item}
-            </div>
-          ))}
-        </div>
-      </section>
     </aside>
   );
 };

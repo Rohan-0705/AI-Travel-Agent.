@@ -153,7 +153,7 @@ const ChatWindow = ({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="planner-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-[#f7faf8] p-2 pb-24 sm:p-4 sm:pb-28 xl:p-5">
+        <div className="planner-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-[#f7faf8] p-2 sm:p-4 xl:p-5">
           <div className="flex w-full max-w-none flex-col gap-3 sm:gap-5">
             {isEmptyChat ? (
               <EmptyTravelState onDraftSelect={setComposerText} />

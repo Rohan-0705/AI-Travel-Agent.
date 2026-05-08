@@ -136,7 +136,7 @@ const InputBox = ({
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder="Ask for hotels, routes, food, or an itinerary"
-            className="h-10 max-h-10 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-2 text-[1rem] leading-6 text-slate-950 outline-none placeholder:text-slate-400 sm:h-11 sm:max-h-11 sm:text-[1.08rem] sm:leading-7"
+            className="h-10 max-h-10 min-w-0 flex-1 resize-none overflow-hidden bg-transparent py-2 text-[1rem] leading-6 text-slate-950 outline-none placeholder:text-slate-400 sm:h-11 sm:max-h-11 sm:text-[1.08rem] sm:leading-7"
           />
           <button
             type="button"
