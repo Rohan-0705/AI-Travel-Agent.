@@ -201,7 +201,7 @@ const Home = () => {
     readStoredList(savedTripsKey),
   );
   const [searchHistory, setSearchHistory] = useState(() =>
-    readStoredList(searchHistoryKey),
+    dedupeSearchHistory(readStoredList(searchHistoryKey)),
   );
   const [historyIdsByTrip, setHistoryIdsByTrip] = useState(
     () => initialSessionState.historyIdsByTrip ?? {},
@@ -370,14 +370,16 @@ const Home = () => {
       setSearchHistory((current) =>
         persistList(
           searchHistoryKey,
-          current.map((item) =>
-            item.id === run.historyItemId
-              ? {
-                  ...item,
-                  destination: payload.structuredPlan?.destination ?? item.destination,
-                  intent: payload.structuredPlan?.intent ?? item.intent,
-                }
-              : item,
+          dedupeSearchHistory(
+            current.map((item) =>
+              item.id === run.historyItemId
+                ? {
+                    ...item,
+                    destination: payload.structuredPlan?.destination ?? item.destination,
+                    intent: payload.structuredPlan?.intent ?? item.intent,
+                  }
+                : item,
+            ),
           ),
         ),
       );
@@ -448,7 +450,10 @@ const Home = () => {
         }
 
         setSearchHistory((current) =>
-          persistList(searchHistoryKey, mergeStoredItems(current, items.map(fromServerHistory)).slice(0, 30)),
+          persistList(
+            searchHistoryKey,
+            dedupeSearchHistory(mergeStoredItems(current, items.map(fromServerHistory))).slice(0, 30),
+          ),
         );
       })
       .catch(() => {});
@@ -538,9 +543,13 @@ const Home = () => {
     const runHistory = options.resetChat
       ? []
       : options.historyMessages ?? messages;
+    const matchingHistory = searchHistory.find(
+      (item) => getSearchHistoryKey(item) === getSearchHistoryKey({ message: cleanText }),
+    );
     const historyItemId =
       options.historyItemId ||
       (!options.resetChat ? historyIdsByTrip[runTripContext.id] : "") ||
+      matchingHistory?.id ||
       createId();
     const assistantId = createId();
     const run = {
@@ -934,6 +943,30 @@ function persistList(key, items) {
   return items;
 }
 
+function getSearchHistoryKey(item) {
+  const message = String(item?.message ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+  return message ? `message:${message}` : `id:${item?.id ?? item?.createdAt ?? ""}`;
+}
+
+function dedupeSearchHistory(items) {
+  const seen = new Set();
+
+  return items.filter((item) => {
+    const key = getSearchHistoryKey(item);
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
 function upsertSearchHistoryItem(items, nextItem) {
   const existing = items.find((item) => item.id === nextItem.id);
   const updated = {
@@ -942,10 +975,10 @@ function upsertSearchHistoryItem(items, nextItem) {
     createdAt: existing?.createdAt ?? nextItem.createdAt,
   };
 
-  return [
+  return dedupeSearchHistory([
     updated,
     ...items.filter((item) => item.id !== nextItem.id),
-  ].slice(0, 30);
+  ]).slice(0, 30);
 }
 
 function readChatSessionState() {

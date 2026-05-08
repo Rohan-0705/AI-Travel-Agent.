@@ -43,13 +43,13 @@ const ChatWindow = ({
 
   return (
     <section className="flex h-[100dvh] min-h-0 w-full max-w-full flex-col overflow-hidden rounded-none border border-slate-900/10 bg-white shadow-sm sm:h-[calc(100vh-1rem)] sm:rounded-xl lg:h-[calc(100vh-1rem)]">
-      <header className="shrink-0 border-b border-slate-200 bg-[#fbfdfb] p-3 lg:p-4">
+      <header className="shrink-0 border-b border-slate-200 bg-[#fbfdfb] p-2.5 lg:p-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase text-[#60746f] sm:text-sm">
               {livePlan ? "Current itinerary" : "Travel AI"}
             </p>
-            <h2 className="mt-1 text-2xl font-semibold leading-tight text-slate-950 sm:text-3xl">
+            <h2 className="mt-1 text-2xl font-semibold leading-tight text-slate-950 sm:text-[1.7rem]">
               {destination}
             </h2>
           </div>
@@ -109,16 +109,16 @@ const ChatWindow = ({
         </div>
 
         <div
-          className={`mt-3 grid gap-2 ${
+          className={`mt-2 grid gap-2 ${
             livePlan
-              ? "md:grid-cols-[minmax(280px,1.1fr)_minmax(180px,0.9fr)]"
+              ? "md:grid-cols-[minmax(250px,1fr)_minmax(150px,0.55fr)]"
               : ""
           }`}
         >
-          <section className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm lg:p-3">
+          <section className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm lg:p-2.5">
             <div className="flex items-start gap-3">
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#e8f8f5] text-[#0f8f83] lg:h-10 lg:w-10">
-                <CalendarDays size={18} />
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#e8f8f5] text-[#0f8f83]">
+                <CalendarDays size={17} />
               </span>
               <CalendarPicker
                 startValue={activeTrip.selectedStartDate}
@@ -130,19 +130,19 @@ const ChatWindow = ({
           </section>
 
           {livePlan ? (
-            <section className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-4">
-              <div className="flex items-start gap-3">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#eef4ff] text-[#2563eb] sm:h-11 sm:w-11">
-                  <CalendarDays size={20} />
+            <section className="rounded-lg border border-slate-200 bg-white p-2 shadow-sm lg:p-2.5">
+              <div className="flex items-center gap-3">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#eef4ff] text-[#2563eb]">
+                  <CalendarDays size={17} />
                 </span>
-                <div>
-                  <p className="text-sm font-semibold uppercase text-slate-500">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
                     Days planned
                   </p>
-                  <p className="mt-1 text-2xl font-semibold text-slate-950 sm:mt-2 sm:text-3xl">
+                  <p className="mt-0.5 text-2xl font-semibold leading-tight text-slate-950">
                     {daysPlanned}
                   </p>
-                  <p className="mt-1 text-sm font-medium text-slate-500">
+                  <p className="text-xs font-medium text-slate-500">
                     itinerary days
                   </p>
                 </div>
@@ -333,7 +333,7 @@ const CalendarPicker = ({ startValue, endValue, suggested, onChange }) => {
 
   return (
     <div ref={pickerRef} className="relative min-w-0 flex-1">
-      <p className="text-sm font-semibold uppercase text-slate-500">
+      <p className="text-xs font-semibold uppercase text-slate-500">
         Travel dates
       </p>
       <button
@@ -347,17 +347,17 @@ const CalendarPicker = ({ startValue, endValue, suggested, onChange }) => {
 
           setIsOpen((current) => !current);
         }}
-        className="mt-1.5 flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-[#f7faf8] px-3 text-left transition hover:border-[#0f8f83] focus:border-[#0f8f83] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#bdeee6] sm:mt-2 sm:min-h-12"
+        className="mt-1 flex min-h-10 w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-[#f7faf8] px-3 py-1.5 text-left transition hover:border-[#0f8f83] focus:border-[#0f8f83] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#bdeee6]"
       >
         <span>
-          <span className="block text-base font-semibold text-slate-950 sm:text-lg">
+          <span className="block text-base font-semibold leading-5 text-slate-950">
             {displayDate}
           </span>
-          <span className="block text-xs font-medium text-slate-500 sm:text-sm">
+          <span className="block text-xs font-medium leading-5 text-slate-500">
             {helperText}
           </span>
         </span>
-        <CalendarDays size={19} className="shrink-0 text-[#0f8f83]" />
+        <CalendarDays size={18} className="shrink-0 text-[#0f8f83]" />
       </button>
 
       {isOpen ? (
