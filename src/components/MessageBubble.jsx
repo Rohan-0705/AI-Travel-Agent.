@@ -34,7 +34,7 @@ const MessageBubble = ({ message }) => {
 
   return (
     <div className="flex justify-start">
-      <div className="w-full rounded-lg border border-slate-200 bg-white p-3 text-slate-700 shadow-sm sm:p-4">
+      <div className="w-full max-w-[52rem] rounded-lg border border-slate-200 bg-white p-3 text-slate-700 shadow-sm sm:p-4">
         <div className="mb-2 flex items-center justify-between gap-3 sm:mb-3">
           <div className="flex min-w-0 items-center gap-2 text-base font-semibold text-slate-950 sm:text-lg">
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#e8f8f5] text-[#0f8f83] sm:h-8 sm:w-8">
@@ -58,7 +58,7 @@ const MessageBubble = ({ message }) => {
             </button>
           ) : null}
         </div>
-        <p className="whitespace-pre-wrap text-[1.02rem] leading-8 sm:text-[1.08rem] sm:leading-8">{message.text}</p>
+        <p className="whitespace-pre-wrap text-[0.98rem] leading-7 sm:text-[1rem]">{message.text}</p>
 
         {message.structuredPlan ? (
           <StructuredPlan plan={message.structuredPlan} />
@@ -148,7 +148,7 @@ const StructuredPlan = ({ plan }) => {
         </div>
       </div>
 
-      <div className="grid gap-2 xl:grid-cols-2 min-[1800px]:grid-cols-3">
+      <div className="grid gap-2">
         {plan.days.map((day) => (
           <article
             key={day.day}
