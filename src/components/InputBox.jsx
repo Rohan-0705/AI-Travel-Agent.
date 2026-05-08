@@ -96,11 +96,11 @@ const InputBox = ({
   return (
     <form
       onSubmit={handleSubmit}
-      className="sticky bottom-0 z-20 shrink-0 border-t border-slate-200 bg-white/95 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:p-4"
+      className="sticky bottom-0 z-20 shrink-0 overflow-hidden border-t border-slate-200 bg-white/95 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:p-4"
     >
       <div className="w-full max-w-none">
         {quickPrompts.length ? (
-          <div className="planner-scrollbar mb-2 flex gap-2 overflow-x-auto pb-1 sm:mb-3 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 xl:grid-cols-4">
+          <div className="planner-scrollbar mb-2 flex gap-2 overflow-x-auto pb-1 sm:mb-3 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0">
             {quickPrompts.map((prompt) => (
               <button
                 key={prompt}
@@ -136,7 +136,7 @@ const InputBox = ({
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder="Ask for hotels, routes, food, or an itinerary"
-            className="h-10 max-h-10 flex-1 resize-none overflow-y-auto bg-transparent py-2 text-[1rem] leading-6 text-slate-950 outline-none placeholder:text-slate-400 sm:h-11 sm:max-h-11 sm:text-[1.08rem] sm:leading-7"
+            className="h-10 max-h-10 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-2 text-[1rem] leading-6 text-slate-950 outline-none placeholder:text-slate-400 sm:h-11 sm:max-h-11 sm:text-[1.08rem] sm:leading-7"
           />
           <button
             type="button"

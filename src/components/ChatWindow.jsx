@@ -153,11 +153,11 @@ const ChatWindow = ({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="planner-scrollbar min-h-0 flex-1 overflow-y-auto bg-[#f7faf8] p-2 pb-28 sm:p-4 sm:pb-32 xl:p-5">
-            <div className="flex w-full max-w-none flex-col gap-3 sm:gap-5">
-              {isEmptyChat ? (
-                <EmptyTravelState onDraftSelect={setComposerText} />
-              ) : null}
+        <div className="planner-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-[#f7faf8] p-2 pb-24 sm:p-4 sm:pb-28 xl:p-5">
+          <div className="flex w-full max-w-none flex-col gap-3 sm:gap-5">
+            {isEmptyChat ? (
+              <EmptyTravelState onDraftSelect={setComposerText} />
+            ) : null}
             {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
@@ -212,30 +212,30 @@ const starterPrompts = [
 
 const EmptyTravelState = ({ onDraftSelect }) => {
   return (
-    <div className="flex min-h-[48vh] items-center justify-center py-8 sm:min-h-[55vh]">
-      <section className="w-full max-w-3xl min-w-0 px-2 text-center">
-        <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-[#e8f8f5] text-[#0f8f83] shadow-sm">
-          <Sparkles size={24} />
+    <div className="flex min-h-0 items-center justify-center py-5 sm:py-7">
+      <section className="w-full max-w-2xl min-w-0 px-1 text-center">
+        <div className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-[#e8f8f5] text-[#0f8f83] shadow-sm">
+          <Sparkles size={22} />
         </div>
-        <p className="mt-5 text-sm font-semibold uppercase tracking-wide text-[#60746f]">
+        <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-[#60746f] sm:text-sm">
           Start planning
         </p>
-        <h3 className="mt-2 text-2xl font-semibold leading-tight text-slate-950 sm:text-5xl">
+        <h3 className="mt-2 text-2xl font-semibold leading-tight text-slate-950 sm:text-3xl lg:text-4xl">
           Where should we go?
         </h3>
-        <p className="mx-auto mt-3 max-w-xl text-[1rem] leading-8 text-slate-600 sm:text-[1.06rem]">
+        <p className="mx-auto mt-3 max-w-xl text-[0.95rem] leading-7 text-slate-600 sm:text-[1rem]">
           Ask for an itinerary, food guide, budget, route, weather, stays, or
           travel tips. The assistant will build the trip workspace after your first
           message.
         </p>
 
-        <div className="mt-7 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
           {starterPrompts.map(({ title, prompt, description, icon: Icon }) => (
             <button
               key={prompt}
               type="button"
               onClick={() => onDraftSelect(prompt)}
-              className="group rounded-lg border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-[#0f8f83] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0f8f83]"
+              className="group min-w-0 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-[#0f8f83] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:p-4"
             >
               <span className="flex items-start gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#f7faf8] text-[#0f8f83] transition group-hover:bg-[#e8f8f5]">
