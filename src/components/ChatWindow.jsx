@@ -42,14 +42,14 @@ const ChatWindow = ({
   const [composerText, setComposerText] = useState("");
 
   return (
-    <section className="flex h-[100dvh] min-h-0 w-full max-w-full flex-col overflow-hidden rounded-none border border-slate-900/10 bg-white shadow-sm sm:h-[calc(100vh-1rem)] sm:rounded-xl lg:h-[calc(100vh-1rem)]">
+    <section className="flex h-[100dvh] min-h-0 w-full max-w-full flex-col overflow-hidden rounded-none border border-slate-900/10 bg-white shadow-sm sm:h-[calc(100vh-1rem)] sm:rounded-xl lg:h-[calc(100vh-2rem)]">
       <header className="shrink-0 border-b border-slate-200 bg-[#fbfdfb] p-2.5 lg:p-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase text-[#60746f] sm:text-sm">
               {livePlan ? "Current itinerary" : "Travel AI"}
             </p>
-            <h2 className="mt-1 text-2xl font-semibold leading-tight text-slate-950 sm:text-[1.7rem]">
+            <h2 className="mt-0.5 text-xl font-semibold leading-tight text-slate-950 sm:text-2xl">
               {destination}
             </h2>
           </div>
@@ -77,7 +77,7 @@ const ChatWindow = ({
               type="button"
               title="Tune filters"
               aria-label="Tune filters"
-              className="hidden h-10 w-full place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:border-[#0f8f83] hover:text-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:grid sm:w-10"
+              className="hidden h-9 w-full place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:border-[#0f8f83] hover:text-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:grid sm:w-9"
             >
               <SlidersHorizontal size={18} />
             </button>
@@ -85,14 +85,14 @@ const ChatWindow = ({
               type="button"
               title="Share itinerary"
               aria-label="Share itinerary"
-              className="hidden h-10 w-full place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:border-[#0f8f83] hover:text-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:grid sm:w-10"
+              className="hidden h-9 w-full place-items-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:border-[#0f8f83] hover:text-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:grid sm:w-9"
             >
               <Share2 size={18} />
             </button>
             <button
               type="button"
               onClick={onSaveTrip}
-              className="flex h-11 min-w-0 items-center justify-center gap-2 rounded-lg bg-[#0f8f83] px-2 text-sm font-semibold text-white transition hover:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:h-10 sm:px-3 sm:text-base"
+              className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-lg bg-[#0f8f83] px-2 text-sm font-semibold text-white transition hover:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:h-9 sm:px-3"
             >
               <Star size={17} />
               <span className="hidden min-[390px]:inline">Save trip</span>
@@ -100,7 +100,7 @@ const ChatWindow = ({
             </button>
             <button
               type="button"
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-2 text-sm font-semibold text-white transition hover:bg-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:h-10 sm:w-auto sm:px-3 sm:text-base"
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-2 text-sm font-semibold text-white transition hover:bg-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:h-9 sm:w-auto sm:px-3"
             >
               <Download size={17} />
               <span className="hidden sm:inline">Export</span>
@@ -139,7 +139,7 @@ const ChatWindow = ({
                   <p className="text-xs font-semibold uppercase text-slate-500">
                     Days planned
                   </p>
-                  <p className="mt-0.5 text-2xl font-semibold leading-tight text-slate-950">
+                  <p className="mt-0.5 text-xl font-semibold leading-tight text-slate-950">
                     {daysPlanned}
                   </p>
                   <p className="text-xs font-medium text-slate-500">
@@ -159,7 +159,7 @@ const ChatWindow = ({
             isEmptyChat ? "overflow-hidden p-3 lg:p-4" : "overflow-y-auto p-2 sm:p-4 xl:p-5",
           ].join(" ")}
         >
-          <div className="flex w-full max-w-none flex-col gap-3 sm:gap-5">
+          <div className="flex w-full max-w-none flex-col gap-3">
             {isEmptyChat ? (
               <EmptyTravelState onDraftSelect={setComposerText} />
             ) : null}

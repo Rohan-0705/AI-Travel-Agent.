@@ -21,7 +21,7 @@ const MessageBubble = ({ message }) => {
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[92%] rounded-lg bg-slate-950 px-3 py-2 text-[1rem] leading-7 text-white shadow-sm sm:max-w-[min(42rem,82%)] sm:px-4 sm:py-3">
+        <div className="max-w-[92%] rounded-lg bg-slate-950 px-3 py-2 text-[0.95rem] leading-6 text-white shadow-sm sm:max-w-[min(38rem,82%)]">
           <div className="mb-1 flex items-center justify-end gap-2 text-sm font-semibold text-[#b7c9c4] sm:mb-2 sm:text-base">
             <span>You</span>
             <UserRound size={15} />
@@ -34,7 +34,7 @@ const MessageBubble = ({ message }) => {
 
   return (
     <div className="flex justify-start">
-      <div className="w-full max-w-[42rem] rounded-lg border border-slate-200 bg-white p-3 text-slate-700 shadow-sm sm:p-4">
+      <div className="w-full max-w-[38rem] rounded-lg border border-slate-200 bg-white p-3 text-slate-700 shadow-sm">
         <div className="mb-2 flex items-center justify-between gap-3 sm:mb-3">
           <div className="flex min-w-0 items-center gap-2 text-base font-semibold text-slate-950 sm:text-lg">
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#e8f8f5] text-[#0f8f83] sm:h-8 sm:w-8">
@@ -58,7 +58,7 @@ const MessageBubble = ({ message }) => {
             </button>
           ) : null}
         </div>
-        <p className="whitespace-pre-wrap text-[0.98rem] leading-7 sm:text-[1rem]">{message.text}</p>
+        <p className="whitespace-pre-wrap text-[0.94rem] leading-6">{message.text}</p>
 
         {message.structuredPlan ? (
           <StructuredPlan plan={message.structuredPlan} />
@@ -117,32 +117,32 @@ const StructuredPlan = ({ plan }) => {
     : "Checked";
 
   return (
-    <div className="mt-3 space-y-2 sm:mt-4 sm:space-y-3">
+      <div className="mt-3 space-y-2">
       <div className="grid gap-2 sm:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-[#f7faf8] p-3 sm:p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase text-slate-500 sm:text-base">
+        <div className="rounded-lg border border-slate-200 bg-[#f7faf8] p-2.5">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
             <CalendarDays size={14} className="text-[#0f8f83]" />
             <span>Plan</span>
           </div>
-          <p className="mt-1 text-base font-semibold text-slate-950 sm:text-lg">
+          <p className="mt-1 text-sm font-semibold text-slate-950">
             {plan.days.length} days
           </p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-[#fff9ed] p-3 sm:p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase text-slate-500 sm:text-base">
+        <div className="rounded-lg border border-slate-200 bg-[#fff9ed] p-2.5">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
             <WalletCards size={14} className="text-[#9a6100]" />
             <span>Budget</span>
           </div>
-          <p className="mt-1 text-base font-semibold text-slate-950 sm:text-lg">
+          <p className="mt-1 text-sm font-semibold text-slate-950">
             {plan.cost?.formattedTotal ?? "Estimate ready"}
           </p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-[#eef4ff] p-3 sm:p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase text-slate-500 sm:text-base">
+        <div className="rounded-lg border border-slate-200 bg-[#eef4ff] p-2.5">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
             <CloudSun size={14} className="text-[#2563eb]" />
             <span>Weather</span>
           </div>
-          <p className="mt-1 text-base font-semibold text-slate-950 sm:text-lg">
+          <p className="mt-1 text-sm font-semibold text-slate-950">
             {weatherRange}
           </p>
         </div>
@@ -152,20 +152,20 @@ const StructuredPlan = ({ plan }) => {
         {plan.days.map((day) => (
           <article
             key={day.day}
-            className="flex min-h-0 flex-col rounded-lg border border-slate-200 bg-[#f7faf8] p-3 sm:min-h-44 sm:p-4"
+            className="flex min-h-0 flex-col rounded-lg border border-slate-200 bg-[#f7faf8] p-3 sm:min-h-32"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold uppercase text-[#0f8f83] sm:text-base">
+              <p className="text-xs font-semibold uppercase text-[#0f8f83]">
                 {day.day}
               </p>
-              <p className="text-sm text-slate-500 sm:text-base">
+              <p className="text-xs text-slate-500">
                 {day.places?.length ?? 0} stops
               </p>
             </div>
-            <p className="mt-1 text-base font-semibold text-slate-950 sm:text-lg">
+            <p className="mt-1 text-sm font-semibold text-slate-950">
               {day.title}
             </p>
-            <p className="mt-2 text-[1rem] leading-8 text-slate-600 sm:text-[1.06rem]">
+            <p className="mt-1.5 text-[0.94rem] leading-6 text-slate-600">
               {day.description}
             </p>
             {day.schedule?.length ? (
@@ -178,7 +178,7 @@ const StructuredPlan = ({ plan }) => {
                     <p className="text-sm font-semibold uppercase text-slate-500">
                       {item.time}
                     </p>
-                    <p className="mt-1 text-[0.98rem] leading-7 text-slate-700 sm:text-[1.03rem]">
+                    <p className="mt-1 text-[0.92rem] leading-6 text-slate-700">
                       {item.activity}
                     </p>
                   </div>
@@ -190,7 +190,7 @@ const StructuredPlan = ({ plan }) => {
                 {day.places.map((place) => (
                   <span
                     key={place.name}
-                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-600 sm:text-base"
+                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600"
                   >
                     <MapPin size={12} className="text-[#0f8f83]" />
                     {place.name}
