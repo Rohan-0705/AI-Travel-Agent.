@@ -695,6 +695,76 @@ const Home = () => {
     }).catch(() => {});
   };
 
+  const handleTuneTrip = () => {
+    if (!livePlan || isStreaming) {
+      return;
+    }
+
+    const destination = livePlan.destination ?? configuredActiveTrip.destination;
+    const days = getStructuredPlanDayCount(livePlan) || configuredActiveTrip.days;
+
+    handleSendMessage(
+      `Tune this ${destination} itinerary for ${days} days. Keep the same destination and day count, improve place quality, add better local descriptions, reduce backtracking, and keep the pace practical.`,
+    );
+  };
+
+  const handleShareTrip = async () => {
+    if (!livePlan) {
+      return;
+    }
+
+    const text = buildTripShareText(livePlan, configuredActiveTrip);
+    const title = `${livePlan.destination ?? configuredActiveTrip.destination} travel plan`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text });
+        pushAgentEvent({
+          type: "done",
+          label: "Share sheet opened",
+          detail: "Your itinerary is ready to send.",
+        });
+        return;
+      }
+
+      const copied = await copyTextToClipboard(text);
+
+      pushAgentEvent({
+        type: copied ? "done" : "error",
+        label: copied ? "Itinerary copied" : "Copy failed",
+        detail: copied
+          ? "Paste it into WhatsApp, mail, or notes."
+          : "Your browser blocked clipboard access.",
+      });
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        return;
+      }
+
+      pushAgentEvent({
+        type: "error",
+        label: "Share failed",
+        detail: error?.message ?? "Try export instead.",
+      });
+    }
+  };
+
+  const handleExportTrip = () => {
+    if (!livePlan) {
+      return;
+    }
+
+    const destination = livePlan.destination ?? configuredActiveTrip.destination;
+    const text = buildTripShareText(livePlan, configuredActiveTrip);
+
+    downloadTextFile(`${slugifyFilename(destination)}-travel-plan.txt`, text);
+    pushAgentEvent({
+      type: "done",
+      label: "Itinerary exported",
+      detail: "A text file was downloaded with the current plan.",
+    });
+  };
+
   const handleSelectSavedTrip = (savedTrip) => {
     const targetTripId = savedTrip.tripId ?? configuredActiveTrip.id;
     setActiveTripId(targetTripId);
@@ -903,7 +973,10 @@ const Home = () => {
             onTripSettingsChange={handleTripSettingsChange}
             onOpenSidebar={() => setIsSidebarOpen(true)}
             onOpenPreview={() => setIsPreviewOpen(true)}
+            onTuneTrip={handleTuneTrip}
+            onShareTrip={handleShareTrip}
             onSaveTrip={handleSaveCurrentTrip}
+            onExportTrip={handleExportTrip}
             onPromptSelect={handleSendMessage}
             onSendMessage={handleSendMessage}
           />
@@ -920,6 +993,138 @@ const Home = () => {
     </div>
   );
 };
+
+function buildTripShareText(plan, fallbackTrip) {
+  const destination = plan?.destination ?? fallbackTrip.destination ?? "Travel plan";
+  const days = getStructuredPlanDayCount(plan) || fallbackTrip.days || 0;
+  const lines = [`${destination} travel plan`];
+
+  if (plan?.summary) {
+    lines.push("", plan.summary);
+  }
+
+  lines.push("");
+
+  if (days) {
+    lines.push(`Days: ${days}`);
+  }
+
+  if (plan?.travelers) {
+    lines.push(`Travelers: ${plan.travelers}`);
+  }
+
+  if (plan?.cost?.formattedTotal) {
+    lines.push(`Budget: ${plan.cost.formattedTotal}`);
+  }
+
+  const weather = formatWeatherForExport(plan?.weather);
+
+  if (weather) {
+    lines.push(`Weather: ${weather}`);
+  }
+
+  if (Array.isArray(plan?.days) && plan.days.length) {
+    lines.push("", "Itinerary");
+    plan.days.forEach((day, index) => {
+      lines.push("", `${day.day ?? `Day ${index + 1}`}: ${day.title ?? "Plan"}`);
+
+      if (day.description) {
+        lines.push(day.description);
+      }
+
+      if (Array.isArray(day.schedule)) {
+        day.schedule.forEach((item) => {
+          if (item?.time && item?.activity) {
+            lines.push(`- ${item.time}: ${item.activity}`);
+          }
+        });
+      }
+
+      const places = Array.isArray(day.places)
+        ? day.places.map((place) => place?.name ?? place).filter(Boolean)
+        : [];
+
+      if (places.length) {
+        lines.push(`Stops: ${places.join(", ")}`);
+      }
+    });
+  }
+
+  if (plan?.foodGuide) {
+    lines.push("", "Food guide", plan.foodGuide.style);
+
+    if (plan.foodGuide.mustTry?.length) {
+      lines.push(`Must try: ${plan.foodGuide.mustTry.slice(0, 7).join(", ")}`);
+    }
+
+    if (plan.foodGuide.areas?.length) {
+      lines.push(`Best areas: ${plan.foodGuide.areas.slice(0, 4).join("; ")}`);
+    }
+  }
+
+  return lines.filter((line) => line !== undefined && line !== null).join("\n");
+}
+
+function formatWeatherForExport(weather) {
+  if (!weather) {
+    return "";
+  }
+
+  if (typeof weather === "string") {
+    return weather;
+  }
+
+  return (
+    weather.summary ||
+    weather.temperature ||
+    weather.formattedForecast ||
+    weather.current?.description ||
+    ""
+  );
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    return document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textarea);
+  }
+}
+
+function downloadTextFile(filename, text) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function slugifyFilename(value) {
+  return String(value ?? "travel-plan")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "travel-plan";
+}
 
 function formatDateForTrip(value) {
   const date = new Date(`${value}T00:00:00`);

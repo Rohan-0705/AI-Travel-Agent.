@@ -29,7 +29,10 @@ const ChatWindow = ({
   onTripSettingsChange,
   onOpenSidebar,
   onOpenPreview,
+  onTuneTrip,
+  onShareTrip,
   onSaveTrip,
+  onExportTrip,
   onPromptSelect,
   onSendMessage,
 }) => {
@@ -75,7 +78,9 @@ const ChatWindow = ({
               type="button"
               title="Tune filters"
               aria-label="Tune filters"
-              className="hidden h-8 w-full place-items-center rounded-md border border-slate-200 bg-white text-slate-600 transition hover:border-[#0f8f83] hover:text-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:grid sm:w-8"
+              onClick={onTuneTrip}
+              disabled={!livePlan || isStreaming}
+              className="hidden h-8 w-full place-items-center rounded-md border border-slate-200 bg-white text-slate-600 transition hover:border-[#0f8f83] hover:text-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-slate-200 disabled:hover:text-slate-600 sm:grid sm:w-8"
             >
               <SlidersHorizontal size={16} />
             </button>
@@ -83,7 +88,9 @@ const ChatWindow = ({
               type="button"
               title="Share itinerary"
               aria-label="Share itinerary"
-              className="hidden h-8 w-full place-items-center rounded-md border border-slate-200 bg-white text-slate-600 transition hover:border-[#0f8f83] hover:text-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:grid sm:w-8"
+              onClick={onShareTrip}
+              disabled={!livePlan}
+              className="hidden h-8 w-full place-items-center rounded-md border border-slate-200 bg-white text-slate-600 transition hover:border-[#0f8f83] hover:text-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-slate-200 disabled:hover:text-slate-600 sm:grid sm:w-8"
             >
               <Share2 size={16} />
             </button>
@@ -98,7 +105,9 @@ const ChatWindow = ({
             </button>
             <button
               type="button"
-              className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md bg-slate-950 px-2.5 text-[0.86rem] font-medium text-white transition hover:bg-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] sm:w-auto"
+              onClick={onExportTrip}
+              disabled={!livePlan}
+              className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md bg-slate-950 px-2.5 text-[0.86rem] font-medium text-white transition hover:bg-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-slate-950 sm:w-auto"
             >
               <Download size={15} />
               <span className="hidden sm:inline">Export</span>
