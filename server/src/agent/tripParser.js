@@ -553,12 +553,14 @@ function extractDestination(message) {
 }
 
 function cleanDestination(value) {
-  return resolveCityAlias(value)
+  const cleaned = String(value ?? "")
     .replace(/^\s*(?:plan|trip|itinerary)\s+(?:a\s+)?/i, "")
     .replace(/\b(next week|next month|locally|local|for|from|with|under)\b.*$/i, "")
     .replace(/\b(will|would|should|is|are|be)\b.*$/i, "")
     .replace(/\b\d+\s*-?\s*(day|days|night|nights|traveler|travelers|people|person|adults?)\b.*$/i, "")
     .trim();
+
+  return resolveCityAlias(cleaned);
 }
 
 function extractOrigin(message) {
@@ -634,6 +636,10 @@ function normalizeCityAliasesInText(value) {
 }
 
 function resolveCityAlias(value = "") {
+  if (isScopedDestination(value)) {
+    return value;
+  }
+
   const normalized = normalizeName(value);
   const alias = cityAliases[normalized];
 
@@ -658,6 +664,10 @@ function resolveCityAlias(value = "") {
   const closestCity = getClosestKnownCity(normalized);
 
   return closestCity || value;
+}
+
+function isScopedDestination(value = "") {
+  return /\b(north|south|old)\s+goa\b/i.test(value) || /\b(panjim|panaji)\b/i.test(value);
 }
 
 function getClosestKnownCity(normalizedValue) {

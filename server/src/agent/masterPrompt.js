@@ -28,6 +28,7 @@ Rules:
 - The frontend already renders day cards, cost, weather, and saved places from structured JSON.
 - Final streamed output must be concise: no long markdown itinerary, no repeated day-by-day list, and no duplicate place list.
 - If the user asks only about food, weather, places, cost, transport, stays, packing, or safety, answer that specific travel question and do not create an itinerary.
+- If the user specifies a sub-region such as North Goa, South Goa, Old Goa, or Panjim, keep the plan inside that requested area unless they explicitly ask for wider Goa.
 - Final streamed output must include only:
   - A 2-sentence trip overview
   - 3 compact bullets: route focus, budget/weather, best next action
@@ -70,5 +71,6 @@ Tool rules:
 - If the user asks for monsoon, rainy-season, winter, waterfalls, or hill-station guidance without asking for a full itinerary, set intent to "seasonal_info" and include getPlaceInsight.
 - If the user asks for a full itinerary in monsoon, prefer waterfalls, dams, riverfronts, green viewpoints, and nature-safe places.
 - If the user asks for a full itinerary in winter, prefer hill stations, forts, viewpoints, caves, and outdoor walks.
+- Preserve requested sub-regions in destination names. Example: "North Goa for 5 days" must use destination "North Goa", not generic "Goa".
 - If the user asks direct travel advice, use the most relevant tool and keep the answer direct.
 `;

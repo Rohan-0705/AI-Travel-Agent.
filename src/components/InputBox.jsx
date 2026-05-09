@@ -96,7 +96,7 @@ const InputBox = ({
   return (
     <form
       onSubmit={handleSubmit}
-      className="sticky bottom-0 z-20 shrink-0 overflow-hidden border-t border-slate-200 bg-white/95 p-2 shadow-[0_-10px_24px_rgba(15,23,42,0.08)] backdrop-blur"
+      className="shrink-0 border-t border-slate-100 bg-white p-2"
     >
       <div className="w-full max-w-none">
         {quickPrompts.length ? (
@@ -115,7 +115,7 @@ const InputBox = ({
           </div>
         ) : null}
 
-        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-[#f7faf8] p-1 focus-within:border-[#0f8f83] focus-within:ring-2 focus-within:ring-[#bdeee6]">
+        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1 shadow-sm focus-within:border-[#0f8f83] focus-within:ring-2 focus-within:ring-[#bdeee6]">
           <button
             type="button"
             title={isListening ? "Stop listening" : "Voice input"}
@@ -136,7 +136,7 @@ const InputBox = ({
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder="Ask for hotels, routes, food, or an itinerary"
-            className="h-9 max-h-9 min-w-0 flex-1 resize-none overflow-hidden bg-transparent py-1.5 text-[0.92rem] leading-6 text-slate-950 outline-none placeholder:text-slate-400"
+            className="h-9 max-h-9 min-w-0 flex-1 resize-none overflow-hidden bg-transparent py-1.5 text-[0.9rem] leading-6 text-slate-950 outline-none placeholder:text-slate-400"
           />
           <button
             type="button"
@@ -149,7 +149,7 @@ const InputBox = ({
           <button
             type="submit"
             disabled={!input.trim() || disabled}
-            className="flex h-9 shrink-0 items-center gap-2 rounded-lg bg-[#0f8f83] px-3 text-sm font-semibold text-white transition hover:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-[#0f8f83] disabled:bg-slate-300 disabled:text-slate-500"
+            className="flex h-9 shrink-0 items-center gap-2 rounded-lg bg-[#0f8f83] px-3 text-[0.88rem] font-medium text-white transition hover:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-[#0f8f83] disabled:bg-slate-300 disabled:text-slate-500"
           >
             <Send size={17} />
             <span className="hidden sm:inline">Send</span>

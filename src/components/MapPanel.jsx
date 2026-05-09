@@ -27,7 +27,7 @@ const MapPanel = ({
   }
 
   const destination = livePlan?.destination ?? activeTrip.destination;
-  const summary = livePlan?.summary ?? activeTrip.summary;
+  const summary = livePlan?.destinationBrief ?? livePlan?.summary ?? activeTrip.summary;
   const foodItems = livePlan?.foodGuide?.mustTry ?? [];
   const directItems = livePlan?.travelAnswer?.items?.map((item) => item.label) ?? [];
   const route = livePlan?.intent === "food_info" && foodItems.length
@@ -52,212 +52,209 @@ const MapPanel = ({
     : livePlan?.cost?.formattedTotal ?? activeTrip.budget;
   const query = route.length ? `${destination} ${route.slice(0, 2).join(" ")}` : activeTrip.mapQuery;
   const mapSrc = `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+  const statCards = [
+    { label: "Weather", value: weatherValue, icon: CloudSun, tone: "text-[#0f8f83]", surface: "bg-[#f2fbf8]" },
+    { label: "Budget", value: budgetValue, icon: WalletCards, tone: "text-[#9a6100]", surface: "bg-[#fffaf0]" },
+    { label: "Pace", value: activeTrip.pace, icon: CalendarClock, tone: "text-[#c2410c]", surface: "bg-[#fff7f4]" },
+    { label: "Score", value: `${activeTrip.score}/100`, icon: Star, tone: "text-[#2563eb]", surface: "bg-[#f2f6ff]" },
+  ];
+  const checkSignals = livePlan?.intent === "food_info"
+    ? [
+        { label: "Food profile", value: livePlan.foodGuide?.source?.includes("Curated") ? "Curated" : "Guide", tone: "teal" },
+        { label: "Must try", value: `${livePlan.foodGuide?.mustTry?.length ?? 0} items`, tone: "amber" },
+        { label: "Budget", value: "Local estimate", tone: "coral" },
+      ]
+    : livePlan?.intent && livePlan.intent !== "trip_plan"
+    ? [
+        { label: "Answer type", value: livePlan.travelAnswer?.label ?? "Travel", tone: "teal" },
+        { label: "Details", value: `${livePlan.travelAnswer?.items?.length ?? livePlan.travelAnswer?.bullets?.length ?? 0} items`, tone: "amber" },
+        { label: "Mode", value: "Direct", tone: "coral" },
+      ]
+    : livePlan
+    ? [
+        { label: "Weather", value: livePlan.weather?.source?.includes("Mock") ? "Demo" : "Live", tone: "teal" },
+        { label: "Places", value: livePlan.places?.length ? `${livePlan.places.length} found` : "Demo", tone: "amber" },
+        { label: "Flights", value: livePlan.flights?.offers?.length ? `${livePlan.flights.offers.length} offers` : "Optional", tone: "coral" },
+      ]
+    : activeTrip.signals;
 
   return (
     <aside
       className={[
-        "planner-scrollbar flex min-h-0 flex-col overflow-y-auto border border-slate-900/10 bg-white shadow-sm",
+        "flex min-h-0 flex-col overflow-hidden border border-slate-200 bg-[#f8faf9] shadow-sm",
         drawer
           ? "h-full max-h-none rounded-none"
-          : "max-h-[90vh] rounded-xl lg:h-[calc(100vh-2rem)] lg:max-h-none",
+          : "max-h-[90vh] rounded-xl lg:h-full lg:max-h-none",
       ].join(" ")}
     >
-      <div className="border-b border-slate-200 p-3 sm:p-4">
+      <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-3">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase text-[#60746f]">
-              Map view
-            </p>
-            <h2 className="mt-1 text-lg font-semibold text-slate-950">
-              {livePlan ? `${destination} live plan` : activeTrip.name}
-            </h2>
-            <p className="mt-1.5 text-[0.92rem] leading-6 text-slate-600">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#38d6c6] text-slate-950">
+                <MapPinned size={16} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-[#60746f]">
+                  Travel AI preview
+                </p>
+                <h2 className="mt-0.5 truncate text-[1.04rem] font-semibold text-slate-950">
+                  {livePlan ? `${destination} live plan` : activeTrip.name}
+                </h2>
+              </div>
+            </div>
+            <p className="mt-2 line-clamp-2 text-[0.82rem] leading-5 text-slate-600">
               {summary}
             </p>
           </div>
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-950 text-white">
-            <MapPinned size={18} />
+          <div className="rounded-md bg-[#e8f8f5] px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-wide text-[#0f8f83]">
+            Live
           </div>
         </div>
       </div>
 
-      <div className="p-3 sm:p-4">
-        <div className="h-56 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 sm:h-64 2xl:h-72">
-          <iframe
-            title={`${activeTrip.destination} map`}
-            width="100%"
-            height="100%"
-            src={mapSrc}
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            className="block border-0"
-          />
-        </div>
+      <div className="planner-scrollbar min-h-0 flex-1 overflow-y-auto p-3">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="h-52 bg-slate-100 sm:h-56 2xl:h-60">
+            <iframe
+              title={`${activeTrip.destination} map`}
+              width="100%"
+              height="100%"
+              src={mapSrc}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              className="block border-0"
+            />
+          </div>
+        </section>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded-lg border border-slate-200 bg-[#f7faf8] p-2.5">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-              <CloudSun size={15} className="text-[#0f8f83]" />
-              <span>Weather</span>
+          {statCards.map(({ label, value, icon: Icon, tone, surface }) => (
+            <div
+              key={label}
+              className={`rounded-lg border border-slate-200 ${surface} p-2.5`}
+            >
+              <div className="flex items-center gap-1.5 text-[0.72rem] font-semibold uppercase tracking-wide text-slate-500">
+                <Icon size={14} className={tone} />
+                <span>{label}</span>
+              </div>
+              <p className="mt-1.5 truncate text-[0.98rem] font-semibold text-slate-950">
+                {value}
+              </p>
             </div>
-            <p className="mt-1.5 text-base font-semibold text-slate-950">
-              {weatherValue}
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-[#fff9ed] p-2.5">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-              <WalletCards size={15} className="text-[#9a6100]" />
-              <span>Budget</span>
-            </div>
-            <p className="mt-1.5 text-base font-semibold text-slate-950">
-              {budgetValue}
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-[#fff6f3] p-2.5">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-              <CalendarClock size={15} className="text-[#c2410c]" />
-              <span>Pace</span>
-            </div>
-            <p className="mt-1.5 text-base font-semibold text-slate-950">
-              {activeTrip.pace}
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-[#eef4ff] p-2.5">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-              <Star size={15} className="text-[#2563eb]" />
-              <span>Score</span>
-            </div>
-            <p className="mt-1.5 text-base font-semibold text-slate-950">
-              {activeTrip.score}/100
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <section className="border-t border-slate-200 p-3 sm:p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase text-[#60746f]">
-              Route snapshot
-            </p>
-            <h3 className="mt-1 text-base font-semibold text-slate-950">
-              {route.length} key stops
-            </h3>
-          </div>
-          <Navigation size={17} className="text-[#0f8f83]" />
-        </div>
-
-        <ol className="mt-3 space-y-2">
-          {route.map((stop, index) => (
-            <li key={stop} className="flex items-start gap-3">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-950 text-xs font-semibold text-white">
-                {index + 1}
-              </span>
-              <span className="min-w-0 flex-1 text-[0.92rem] font-medium leading-6 text-slate-700">
-                {stop}
-              </span>
-            </li>
           ))}
-        </ol>
-      </section>
+        </div>
 
-      {livePlan?.booking?.actions?.length ? (
-        <section className="border-t border-slate-200 p-3 sm:p-4">
-          <h3 className="text-base font-semibold text-slate-950">
-            Booking handoff
-          </h3>
-          <p className="mt-1.5 text-[0.92rem] leading-6 text-slate-600">
-            {livePlan.booking.note}
-          </p>
+        <section className="mt-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-[#60746f]">
+                Route snapshot
+              </p>
+              <h3 className="mt-0.5 text-[0.98rem] font-semibold text-slate-950">
+                {route.length} key stops
+              </h3>
+            </div>
+            <div className="grid h-8 w-8 place-items-center rounded-lg bg-[#e8f8f5] text-[#0f8f83]">
+              <Navigation size={16} />
+            </div>
+          </div>
+
+          <ol className="mt-3 space-y-1.5">
+            {route.map((stop, index) => (
+              <li key={stop} className="relative grid grid-cols-[1.75rem_minmax(0,1fr)] gap-2">
+                {index < route.length - 1 ? (
+                  <span className="absolute left-[0.84rem] top-7 h-full w-px bg-slate-200" />
+                ) : null}
+                <span className="relative z-10 grid h-7 w-7 place-items-center rounded-md bg-slate-950 text-[0.74rem] font-semibold text-white">
+                  {index + 1}
+                </span>
+                <span className="min-w-0 rounded-md px-1 py-1 text-[0.9rem] font-medium leading-5 text-slate-700">
+                  {stop}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        {livePlan?.booking?.actions?.length ? (
+          <section className="mt-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+            <h3 className="text-[0.98rem] font-semibold text-slate-950">
+              Booking handoff
+            </h3>
+            <p className="mt-1.5 text-[0.86rem] leading-5 text-slate-600">
+              {livePlan.booking.note}
+            </p>
+            <div className="mt-3 grid gap-2">
+              {livePlan.booking.actions.map((action) => (
+                <a
+                  key={action.type}
+                  href={action.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[0.9rem] font-medium text-slate-700 transition hover:border-[#0f8f83] hover:text-[#0f8f83]"
+                >
+                  <span>{action.label}</span>
+                  <ExternalLink size={14} />
+                </a>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <section className="mt-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={16} className="text-[#0f8f83]" />
+            <h3 className="text-[0.98rem] font-semibold text-slate-950">Smart checks</h3>
+          </div>
           <div className="mt-3 grid gap-2">
-            {livePlan.booking.actions.map((action) => (
-              <a
-                key={action.type}
-                href={action.url}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 text-[0.96rem] font-semibold text-slate-700 transition hover:border-[#0f8f83] hover:text-[#0f8f83]"
+            {checkSignals.map((signal) => (
+              <div
+                key={signal.label}
+                className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-[#fbfdfb] px-2.5 py-2"
               >
-                <span>{action.label}</span>
-                <ExternalLink size={15} />
-              </a>
+                <span className="text-[0.86rem] font-medium text-slate-600">
+                  {signal.label}
+                </span>
+                <span
+                  className={`rounded-md px-2 py-1 text-[0.72rem] font-semibold ${
+                    toneStyles[signal.tone]
+                  }`}
+                >
+                  {signal.value}
+                </span>
+              </div>
             ))}
           </div>
         </section>
-      ) : null}
 
-      <section className="border-t border-slate-200 p-3 sm:p-4">
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={18} className="text-[#0f8f83]" />
-          <h3 className="text-base font-semibold text-slate-950">Smart checks</h3>
-        </div>
-        <div className="mt-3 grid gap-2">
-          {(livePlan?.intent === "food_info"
-            ? [
-                { label: "Food profile", value: livePlan.foodGuide?.source?.includes("Curated") ? "Curated" : "Guide", tone: "teal" },
-                { label: "Must try", value: `${livePlan.foodGuide?.mustTry?.length ?? 0} items`, tone: "amber" },
-                { label: "Budget", value: "Local estimate", tone: "coral" },
-              ]
-            : livePlan?.intent && livePlan.intent !== "trip_plan"
-            ? [
-                { label: "Answer type", value: livePlan.travelAnswer?.label ?? "Travel", tone: "teal" },
-                { label: "Details", value: `${livePlan.travelAnswer?.items?.length ?? livePlan.travelAnswer?.bullets?.length ?? 0} items`, tone: "amber" },
-                { label: "Mode", value: "Direct", tone: "coral" },
-              ]
-            : livePlan
-            ? [
-                { label: "Weather", value: livePlan.weather?.source?.includes("Mock") ? "Demo" : "Live", tone: "teal" },
-                { label: "Places", value: livePlan.places?.length ? `${livePlan.places.length} found` : "Demo", tone: "amber" },
-                { label: "Flights", value: livePlan.flights?.offers?.length ? `${livePlan.flights.offers.length} offers` : "Optional", tone: "coral" },
-              ]
-            : activeTrip.signals
-          ).map((signal) => (
-            <div
-              key={signal.label}
-              className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-2.5"
-            >
-              <span className="text-[0.96rem] font-medium text-slate-600">
-                {signal.label}
-              </span>
-              <span
-                className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
-                  toneStyles[signal.tone]
-                }`}
+        <section className="mt-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+          <h3 className="text-[0.98rem] font-semibold text-slate-950">Stay shortlist</h3>
+          <div className="mt-3 space-y-2">
+            {stays.map((stay) => (
+              <div
+                key={stay.name}
+                className="rounded-md border border-slate-200 bg-[#fbfdfb] px-2.5 py-2"
               >
-                {signal.value}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="border-t border-slate-200 p-3 sm:p-4">
-        <h3 className="text-base font-semibold text-slate-950">Stay shortlist</h3>
-        <div className="mt-3 space-y-2">
-          {stays.map((stay) => (
-            <div
-              key={stay.name}
-              className="rounded-lg border border-slate-200 bg-[#fbfdfb] p-2.5"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-[0.96rem] font-semibold text-slate-950">
-                    {stay.name}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[0.9rem] font-semibold text-slate-950">
+                      {stay.name}
+                    </p>
+                    <p className="mt-0.5 text-[0.76rem] text-slate-500">{stay.fit}</p>
+                  </div>
+                  <p className="shrink-0 text-[0.86rem] font-semibold text-[#0f8f83]">
+                    {stay.price}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">{stay.fit}</p>
                 </div>
-                <p className="shrink-0 text-[0.96rem] font-semibold text-[#0f8f83]">
-                  {stay.price}
-                </p>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      </div>
     </aside>
   );
 };
-
 const EmptyMapPanel = ({ drawer = false }) => {
   return (
     <aside
@@ -265,25 +262,32 @@ const EmptyMapPanel = ({ drawer = false }) => {
         "flex min-h-0 flex-col overflow-hidden border border-slate-900/10 bg-white shadow-sm",
         drawer
           ? "h-full max-h-none rounded-none"
-          : "max-h-[90vh] rounded-xl lg:h-[calc(100vh-2rem)] lg:max-h-none",
+          : "max-h-[90vh] rounded-xl lg:h-auto lg:max-h-none lg:self-start",
       ].join(" ")}
     >
-      <div className="shrink-0 border-b border-slate-200 p-3 sm:p-4">
+      <div className="shrink-0 border-b border-slate-200 bg-white p-3 sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase text-[#60746f]">
-              Trip preview
-            </p>
-            <h2 className="mt-1 text-lg font-semibold text-slate-950">
-              Ready when you are
-            </h2>
-            <p className="mt-1.5 text-[0.92rem] leading-6 text-slate-600">
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#38d6c6] text-slate-950">
+                <MapPinned size={16} />
+              </span>
+              <div>
+                <p className="text-[0.72rem] font-semibold uppercase tracking-wide text-[#60746f]">
+                  Travel AI preview
+                </p>
+                <h2 className="mt-0.5 text-[1.04rem] font-semibold text-slate-950">
+                  Ready when you are
+                </h2>
+              </div>
+            </div>
+            <p className="mt-2 text-[0.82rem] leading-5 text-slate-600">
               Your map, route, cost, weather, and place shortlist will appear
               here after the first travel request.
             </p>
           </div>
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-950 text-white">
-            <MapPinned size={18} />
+          <div className="rounded-md bg-[#f7faf8] px-2 py-1 text-[0.7rem] font-semibold uppercase tracking-wide text-slate-500">
+            Idle
           </div>
         </div>
       </div>

@@ -346,6 +346,18 @@ const Home = () => {
         return;
       }
 
+      const plannedDays = getStructuredPlanDayCount(payload.structuredPlan);
+
+      if (plannedDays) {
+        setTripSettingsByTrip((current) => ({
+          ...current,
+          [run.tripId]: {
+            ...(current[run.tripId] ?? {}),
+            days: plannedDays,
+          },
+        }));
+      }
+
       setLivePlansByTrip((current) => ({
         ...current,
         [run.tripId]: payload.structuredPlan,
@@ -557,6 +569,18 @@ const Home = () => {
       assistantId,
       historyItemId,
     };
+    const requestedDays = extractRequestedDays(cleanText);
+
+    if (requestedDays) {
+      setTripSettingsByTrip((current) => ({
+        ...current,
+        [runTripContext.id]: {
+          ...(current[runTripContext.id] ?? {}),
+          days: requestedDays,
+        },
+      }));
+    }
+
     activeRunRef.current = run;
     setHistoryIdsByTrip((current) => ({
       ...current,
@@ -797,7 +821,7 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-[#edf3f1] text-slate-950 lg:h-screen lg:overflow-hidden">
+    <div className="min-h-screen w-full overflow-x-hidden bg-[#edf3f1] text-slate-950 lg:h-screen lg:overflow-hidden lg:p-2">
       <div
         className={`fixed inset-0 z-50 lg:hidden ${
           isSidebarOpen ? "" : "pointer-events-none"
@@ -855,8 +879,8 @@ const Home = () => {
           />
         </div>
       </div>
-      <main className="mx-auto grid h-[100dvh] min-h-0 w-full max-w-[1280px] grid-cols-1 items-stretch gap-2 overflow-hidden p-0 sm:p-2 lg:h-screen lg:p-3 lg:grid-cols-[230px_minmax(0,560px)_minmax(280px,1fr)] xl:grid-cols-[240px_minmax(0,580px)_minmax(300px,1fr)] 2xl:grid-cols-[250px_minmax(0,600px)_minmax(310px,1fr)]">
-        <div className="hidden lg:order-1 lg:block">
+      <main className="grid h-[100dvh] min-h-0 w-full grid-cols-1 items-stretch gap-2 overflow-hidden p-0 sm:p-2 lg:h-[calc(100vh-1rem)] lg:p-0 lg:grid-cols-[250px_minmax(0,1fr)_320px] xl:grid-cols-[260px_minmax(0,1fr)_340px] 2xl:grid-cols-[270px_minmax(0,1fr)_360px]">
+        <div className="hidden min-h-0 lg:order-1 lg:block lg:h-full">
           <Sidebar
             savedTrips={savedTrips}
             searchHistory={searchHistory}
@@ -867,7 +891,7 @@ const Home = () => {
             onSelectHistory={handleSelectHistory}
           />
         </div>
-        <div className="order-2 min-w-0 lg:order-2">
+        <div className="order-2 min-h-0 min-w-0 lg:order-2 lg:h-full">
           <ChatWindow
             activeTrip={configuredActiveTrip}
             livePlan={livePlan}
@@ -884,7 +908,7 @@ const Home = () => {
             onSendMessage={handleSendMessage}
           />
         </div>
-        <div className="order-3 hidden min-w-0 lg:block">
+        <div className="order-3 hidden min-h-0 min-w-0 lg:block lg:h-full">
           <MapPanel
             activeTrip={configuredActiveTrip}
             livePlan={livePlan}
@@ -1069,6 +1093,47 @@ function fromServerHistory(item) {
     destination: item.destination ?? "",
     createdAt: item.createdAt ?? new Date().toISOString(),
   };
+}
+
+function extractRequestedDays(message) {
+  const text = String(message ?? "").toLowerCase();
+  const numericMatch = text.match(/\b(\d{1,2})\s*-?\s*(?:day|days|night|nights)\b/);
+
+  if (numericMatch) {
+    return clampTripDays(Number(numericMatch[1]));
+  }
+
+  const wordToNumber = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+  };
+  const wordMatch = text.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:day|days|night|nights)\b/);
+
+  return wordMatch ? wordToNumber[wordMatch[1]] : 0;
+}
+
+function getStructuredPlanDayCount(plan) {
+  if (!plan) {
+    return 0;
+  }
+
+  if (Array.isArray(plan.days) && plan.days.length > 0) {
+    return clampTripDays(plan.days.length);
+  }
+
+  return clampTripDays(Number(plan.days) || Number(plan.durationDays) || 0);
+}
+
+function clampTripDays(days) {
+  return Number.isFinite(days) && days > 0 ? Math.min(Math.round(days), 30) : 0;
 }
 
 function getAssistantTitle(intent) {

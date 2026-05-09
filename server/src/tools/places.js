@@ -3,16 +3,15 @@ import { resolveTravelDestination } from "./destinationResolver.js";
 export async function getPlaces({ city, interests = [] }) {
   const resolvedDestination = await resolveTravelDestination(city).catch(() => null);
   const searchCity = resolvedDestination?.name || city;
-  const searchVariants = resolvedDestination?.variants ?? [city];
+  const searchVariants = getDestinationSearchVariants(resolvedDestination, city);
   const coordinates = resolvedDestination?.coordinates ?? null;
-  const resolvedAnchor = buildResolvedDestinationPlace(resolvedDestination);
-
   if (process.env.GOOGLE_PLACES_API_KEY) {
     const googlePlaces = await getGooglePlaces({ city: searchCity, interests });
     const rankedGooglePlaces = rankPlaceCards({
       city: searchCity,
       results: [googlePlaces],
       interests,
+      origin: coordinates,
     });
 
     if (rankedGooglePlaces.places?.length) {
@@ -34,6 +33,11 @@ export async function getPlaces({ city, interests = [] }) {
     city: searchCity,
     variants: searchVariants,
   }).catch(() => null);
+  const wikipediaSearchPlaces = await getWikipediaSearchPlaces({
+    city: searchCity,
+    variants: searchVariants,
+    coordinates,
+  }).catch(() => null);
   const wikiVoyagePlaces = await getWikivoyagePlaces({
     city: searchCity,
     variants: searchVariants,
@@ -46,46 +50,52 @@ export async function getPlaces({ city, interests = [] }) {
 
   const mergedLivePlaces = rankPlaceCards({
     city: searchCity,
-    results: [resolvedAnchor, wikipediaPlaces, wikiVoyagePlaces, openTripMapPlaces, openStreetMapPlaces].filter(Boolean),
+    results: [wikipediaPlaces, wikipediaSearchPlaces, wikiVoyagePlaces, openTripMapPlaces, openStreetMapPlaces].filter(Boolean),
     interests,
+    origin: coordinates,
   });
 
   if (mergedLivePlaces.places?.length) {
     return mergedLivePlaces;
   }
 
-  return mockPlaces(searchCity, interests);
+  return {
+    source: "No verified live places found",
+    city: searchCity,
+    places: [],
+    warning: `No verified attraction sources returned usable places for ${searchCity}.`,
+  };
 }
 
-function buildResolvedDestinationPlace(resolvedDestination) {
-  if (
-    !resolvedDestination?.name ||
-    !resolvedDestination?.coordinates ||
-    !/wikipedia/i.test(resolvedDestination.source ?? "")
-  ) {
-    return null;
-  }
+function getDestinationSearchVariants(resolvedDestination, city) {
+  const normalizedCity = normalizeName(city);
+  const cityState = normalizeName(resolvedDestination?.state);
+  const candidates = [
+    city,
+    resolvedDestination?.query,
+    resolvedDestination?.name,
+    resolvedDestination?.locality,
+    ...(resolvedDestination?.variants ?? []),
+  ].filter(Boolean);
 
-  return {
-    source: "Resolved destination landmark",
-    city: resolvedDestination.name,
-    places: [
-      {
-        name: resolvedDestination.name,
-        address: [resolvedDestination.locality, resolvedDestination.state, "India"]
-          .filter(Boolean)
-          .join(", "),
-        rating: 8,
-        type: "landmark",
-        location: {
-          latitude: resolvedDestination.coordinates.lat,
-          longitude: resolvedDestination.coordinates.lon,
-        },
-        sourceQuality: "referenced",
-        url: "",
-      },
-    ],
-  };
+  return [...new Set(candidates)]
+    .filter((variant) => {
+      const normalizedVariant = normalizeName(variant);
+
+      if (!normalizedVariant) {
+        return false;
+      }
+
+      if (cityState && normalizedVariant === cityState && normalizedVariant !== normalizedCity) {
+        return false;
+      }
+
+      return (
+        normalizedVariant === normalizedCity ||
+        normalizedVariant.includes(normalizedCity) ||
+        normalizedCity.includes(normalizedVariant)
+      );
+    });
 }
 
 const mainAttractionKinds = [
@@ -103,6 +113,7 @@ const landmarkKeywords = [
   "beach",
   "bird",
   "botanical",
+  "bridge",
   "cave",
   "castle",
   "caves",
@@ -117,14 +128,16 @@ const landmarkKeywords = [
   "ghat",
   "heritage",
   "hill",
+  "hot spring",
   "gufa",
   "jyotirlinga",
   "kund",
-  "peak",
   "pine",
   "lake",
   "marine",
   "market",
+  "mall road",
+  "camp",
   "mahalaxmi",
   "monument",
   "museum",
@@ -133,7 +146,14 @@ const landmarkKeywords = [
   "planetarium",
   "promenade",
   "ramkund",
+  "rafting",
+  "rapids",
+  "reserve",
   "river",
+  "riverfront",
+  "rock",
+  "rocks",
+  "pass",
   "rose",
   "samadhi",
   "sanctuary",
@@ -146,6 +166,7 @@ const landmarkKeywords = [
   "vineyards",
   "view",
   "viewpoint",
+  "valley",
   "waterfall",
   "winery",
   "wildlife",
@@ -200,6 +221,7 @@ const badPlaceNamePatterns = [
   /\bcorridor\b/i,
   /\bcourt\b/i,
   /\bdepot\b/i,
+  /\bflexible\s+(food|rest|block)\b/i,
   /university/i,
   /department/i,
   /office/i,
@@ -207,8 +229,12 @@ const badPlaceNamePatterns = [
   /atm/i,
   /hospital/i,
   /clinic/i,
+  /\b(circuit\s*house|hotel|inn|resort)\b/i,
+  /\bentry\s*\/\s*reception\b/i,
+  /\bticket\s*(counter|office|window)\b/i,
   /lodging/i,
   /transport/i,
+  /\b(restroom|toilet|washroom)\b/i,
   /jail/i,
   /institute/i,
   /amphitheatre/i,
@@ -220,6 +246,7 @@ const badPlaceNamePatterns = [
   /\bnorth south\b/i,
   /\borange line\b/i,
   /\bparking\b/i,
+  /\bcar\s*park\b/i,
   /\bpolice\b/i,
   /\bpower\s*(house|station)?\b/i,
   /\bproposed\b/i,
@@ -227,19 +254,49 @@ const badPlaceNamePatterns = [
   /\bsubstation\b/i,
   /\bterminal\b/i,
   /\btraffic\b/i,
+  /\bcentral stay area\b/i,
+  /\bverified nearby attraction\b/i,
   /^mandir$/i,
   /^temple$/i,
   /^garden$/i,
 ];
 
+function cleanTouristPlaceName(value = "") {
+  const cleaned = String(value ?? "")
+    .replace(/\s+/g, " ")
+    .replace(/\bWildife\b/gi, "Wildlife")
+    .replace(/\s+\((?:entry|reception|parking|ticket counter|ticket office|gate)\s*[^)]*\)$/i, "")
+    .replace(/^near\s+/i, "")
+    .replace(/^lower\s+/i, "")
+    .replace(/\s+(?:entry\s*\/\s*reception|entry|reception|ticket counter|ticket office|ticket window|parking|car park)$/i, "")
+    .replace(/\s+extension$/i, "")
+    .replace(/\s+mountain$/i, "")
+    .replace(/\s+gate\s*\d*$/i, "")
+    .trim();
+
+  return formatPlaceNameCasing(cleaned);
+}
+
+function formatPlaceNameCasing(value = "") {
+  if (!value || !/[a-zA-Z]/.test(value)) {
+    return value;
+  }
+
+  if (/[A-Z]/.test(value) && /[a-z]/.test(value)) {
+    return value;
+  }
+
+  return value.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
 const strongTouristPatterns = [
   /\b(unesco|heritage|fort|killa|castle|palace|wada)\b/i,
-  /\b(museum|memorial|monument|samadhi|stupa|ashram)\b/i,
+  /\b(museum|memorial|monument|samadhi|stupa|ashram|bridge)\b/i,
   /\b(cave|caves|leni|buddhist caves?)\b/i,
   /\b(temple|mandir|jyotirlinga|sacred|pilgrimage|gufa|kund|cathedral|basilica|church|mosque|dargah|synagogue)\b/i,
-  /\b(lake|dam|river|ghat|waterfall|falls|backwater|sanctuary|wildlife|bird sanctuary)\b/i,
-  /\b(hill|peak|viewpoint|view point|garden|park|zoo|botanical|rose garden|boat house|tea factory|pine forest|shooting point|echo rock|hidden valley)\b/i,
-  /\b(beach|promenade|market|bazaar|vineyard|vineyards|winery|aquarium|planetarium)\b/i,
+  /\b(lake|dam|river|ghat|waterfall|falls|backwater|sanctuary|wildlife|bird sanctuary|tiger reserve|nature camp|rafting|rapids|hot springs?)\b/i,
+  /\b(hill|viewpoint|view point|valley|mountain pass|garden|park|zoo|botanical|rose garden|boat house|tea factory|pine forest|rock|rocks|caves?|shooting point|echo rock|hidden valley)\b/i,
+  /\b(beach|promenade|market|bazaar|mall road|vineyard|vineyards|winery|aquarium|planetarium)\b/i,
 ];
 
 const weakTravelPatterns = [
@@ -274,7 +331,7 @@ async function getGooglePlaces({ city, interests }) {
     source: "Google Places API Text Search New",
     city,
     places: (data.places ?? []).slice(0, 10).map((place) => ({
-      name: place.displayName?.text ?? "Unnamed place",
+      name: cleanTouristPlaceName(place.displayName?.text ?? "Unnamed place"),
       address: place.formattedAddress ?? "",
       rating: place.rating ?? null,
       type: place.types?.[0] ?? "point_of_interest",
@@ -369,9 +426,15 @@ async function getOpenStreetMapPlaces({ city, interests, coordinates = null }) {
       node(around:${radius},${lat},${lon})["leisure"~"park|garden|nature_reserve"];
       way(around:${radius},${lat},${lon})["leisure"~"park|garden|nature_reserve"];
       relation(around:${radius},${lat},${lon})["leisure"~"park|garden|nature_reserve"];
-      node(around:${radius},${lat},${lon})["natural"~"peak|waterfall|spring|water"];
-      way(around:${radius},${lat},${lon})["natural"~"peak|waterfall|spring|water"];
-      relation(around:${radius},${lat},${lon})["natural"~"peak|waterfall|spring|water"];
+      node(around:${radius},${lat},${lon})["boundary"="protected_area"];
+      way(around:${radius},${lat},${lon})["boundary"="protected_area"];
+      relation(around:${radius},${lat},${lon})["boundary"="protected_area"];
+      node(around:${radius},${lat},${lon})["natural"~"beach|peak|waterfall|spring|water|rock|cliff|cave_entrance"];
+      way(around:${radius},${lat},${lon})["natural"~"beach|peak|waterfall|spring|water|rock|cliff|cave_entrance"];
+      relation(around:${radius},${lat},${lon})["natural"~"beach|peak|waterfall|spring|water|rock|cliff|cave_entrance"];
+      node(around:${radius},${lat},${lon})["waterway"="river"];
+      way(around:${radius},${lat},${lon})["waterway"="river"];
+      relation(around:${radius},${lat},${lon})["waterway"="river"];
       node(around:${radius},${lat},${lon})["water"="lake"];
       way(around:${radius},${lat},${lon})["water"="lake"];
       relation(around:${radius},${lat},${lon})["water"="lake"];
@@ -379,23 +442,10 @@ async function getOpenStreetMapPlaces({ city, interests, coordinates = null }) {
       way(around:${radius},${lat},${lon})["landuse"="vineyard"];
       relation(around:${radius},${lat},${lon})["landuse"="vineyard"];
     );
-    out center tags 80;
+    out center tags 220;
   `;
 
-  const overpassResponse = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-      "User-Agent": "AI-Travel-Planner/1.0 local development",
-    },
-    body: new URLSearchParams({ data: query }),
-  });
-
-  if (!overpassResponse.ok) {
-    throw new Error(`OpenStreetMap Overpass request failed: ${overpassResponse.status}`);
-  }
-
-  const data = await overpassResponse.json();
+  const data = await fetchOverpassJson(query);
   const places = rankAndCleanOsmPlaces({
     city,
     rawPlaces: data.elements ?? [],
@@ -408,6 +458,37 @@ async function getOpenStreetMapPlaces({ city, interests, coordinates = null }) {
     city,
     places,
   };
+}
+
+async function fetchOverpassJson(query) {
+  const endpoints = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+  ];
+  let lastError = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      const overpassResponse = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+          "User-Agent": "AI-Travel-Planner/1.0 local development",
+        },
+        body: new URLSearchParams({ data: query }),
+      });
+
+      if (!overpassResponse.ok) {
+        throw new Error(`OpenStreetMap Overpass request failed: ${overpassResponse.status}`);
+      }
+
+      return overpassResponse.json();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error("OpenStreetMap Overpass request failed.");
 }
 
 async function getWikivoyagePlaces({ city, variants = [] }) {
@@ -457,7 +538,11 @@ async function fetchWikivoyagePlaces(title) {
   }
 
   const places = parseWikivoyageListings(content)
-    .filter((place) => place.name && !isBadPlaceName(place.name))
+    .filter((place) =>
+      place.name &&
+      !isBadPlaceName(place.name) &&
+      !isDestinationOnlyPlace(place, title),
+    )
     .slice(0, 35);
 
   return {
@@ -510,6 +595,174 @@ async function getWikipediaAttractionList({ city, variants = [] }) {
     city,
     places,
   };
+}
+
+async function getWikipediaSearchPlaces({ city, variants = [], coordinates = null }) {
+  const cityVariants = getCityNameVariants(city, variants).slice(0, 3);
+  const searchQueries = [...new Set(cityVariants.flatMap((variant) => [
+    `${variant} tourist attractions`,
+    `${variant} places to visit`,
+  ]))];
+
+  for (const query of searchQueries) {
+    const searchUrl = new URL("https://en.wikipedia.org/w/api.php");
+    searchUrl.searchParams.set("action", "query");
+    searchUrl.searchParams.set("list", "search");
+    searchUrl.searchParams.set("format", "json");
+    searchUrl.searchParams.set("srlimit", "12");
+    searchUrl.searchParams.set("srsearch", query);
+
+    const searchResponse = await fetch(searchUrl, {
+      headers: {
+        "User-Agent": "AI-Travel-Planner/1.0 local development",
+        "Accept-Language": "en",
+      },
+    });
+
+    if (!searchResponse.ok) {
+      throw new Error(`Wikipedia place search failed: ${searchResponse.status}`);
+    }
+
+    const searchData = await searchResponse.json();
+    const searchResults = searchData.query?.search ?? [];
+    const candidates = searchResults
+      .map((result) => ({
+        title: result.title,
+        snippet: cleanWikiText(result.snippet),
+      }))
+      .filter((result) => isWikipediaSearchPlaceCandidate(result, city))
+      .slice(0, 8);
+
+    if (!candidates.length) {
+      continue;
+    }
+
+    const placePages = await fetchWikipediaPlacePages(candidates, city, coordinates);
+
+    if (placePages.length) {
+      return {
+        source: "Wikipedia place search",
+        city,
+        places: placePages,
+      };
+    }
+  }
+
+  throw new Error(`Wikipedia place search had no usable places for ${city}.`);
+}
+
+async function fetchWikipediaPlacePages(candidates, city, coordinates = null) {
+  const pageUrl = new URL("https://en.wikipedia.org/w/api.php");
+  pageUrl.searchParams.set("action", "query");
+  pageUrl.searchParams.set("prop", "extracts|coordinates|pageprops");
+  pageUrl.searchParams.set("exintro", "1");
+  pageUrl.searchParams.set("explaintext", "1");
+  pageUrl.searchParams.set("redirects", "1");
+  pageUrl.searchParams.set("format", "json");
+  pageUrl.searchParams.set("titles", candidates.map((candidate) => candidate.title).join("|"));
+
+  const pageResponse = await fetch(pageUrl, {
+    headers: {
+      "User-Agent": "AI-Travel-Planner/1.0 local development",
+      "Accept-Language": "en",
+    },
+  });
+
+  if (!pageResponse.ok) {
+    throw new Error(`Wikipedia place page lookup failed: ${pageResponse.status}`);
+  }
+
+  const snippets = new Map(candidates.map((candidate) => [candidate.title, candidate.snippet]));
+  const pages = Object.values((await pageResponse.json()).query?.pages ?? {});
+  const seen = new Set();
+
+  return pages
+    .filter((page) => page.title && !page.missing && !page.pageprops?.disambiguation)
+    .map((page) => {
+      const name = cleanTouristPlaceName(cleanWikiText(page.title));
+      const description = cleanWikiText(page.extract || snippets.get(page.title) || "");
+      const latitude = Number(page.coordinates?.[0]?.lat);
+      const longitude = Number(page.coordinates?.[0]?.lon);
+
+      return {
+        name,
+        address: "",
+        rating: 7,
+        type: inferPlaceType(`${name} ${description}`),
+        description,
+        sourceQuality: "referenced",
+        location: {
+          latitude: Number.isFinite(latitude) ? latitude : undefined,
+          longitude: Number.isFinite(longitude) ? longitude : undefined,
+        },
+        url: `https://en.wikipedia.org/wiki/${encodeURIComponent(name.replace(/\s+/g, "_"))}`,
+      };
+    })
+    .filter((place) => {
+      const normalized = normalizeName(place.name);
+
+      if (
+        !normalized ||
+        seen.has(normalized) ||
+        isBadPlaceName(place.name) ||
+        isDestinationOnlyPlace(place, city) ||
+        shouldSkipWikipediaPlaceName(place.name) ||
+        isDistantWikipediaPlace(place, coordinates) ||
+        !isUsefulWikipediaPlacePage(place)
+      ) {
+        return false;
+      }
+
+      seen.add(normalized);
+      return true;
+    });
+}
+
+function isDistantWikipediaPlace(place, coordinates) {
+  const originLat = Number(coordinates?.lat);
+  const originLon = Number(coordinates?.lon);
+  const latitude = Number(place.location?.latitude);
+  const longitude = Number(place.location?.longitude);
+
+  if (![originLat, originLon, latitude, longitude].every(Number.isFinite)) {
+    return false;
+  }
+
+  return distanceInKm(originLat, originLon, latitude, longitude) > 75;
+}
+
+function isUsefulWikipediaPlacePage(place) {
+  const text = `${place.name ?? ""} ${place.type ?? ""} ${place.description ?? ""}`;
+  const score =
+    touristSignalScore(text) +
+    genericTouristKeywordScore(text.toLowerCase()) +
+    travelImportanceScore(text) +
+    hillStationSignalScore(text.toLowerCase());
+
+  if (score >= 18) {
+    return true;
+  }
+
+  return !/\b(town|village|taluk|district)\b/i.test(place.description ?? "");
+}
+
+function isWikipediaSearchPlaceCandidate(result, city) {
+  const title = cleanTouristPlaceName(cleanWikiText(result.title));
+  const text = `${title} ${result.snippet ?? ""}`;
+
+  if (
+    !title ||
+    shouldSkipWikipediaPlaceName(title) ||
+    isDestinationOnlyPlace({ name: title }, city)
+  ) {
+    return false;
+  }
+
+  return (
+    strongTouristPatterns.some((pattern) => pattern.test(text)) ||
+    genericTouristKeywordScore(text.toLowerCase()) > 0 ||
+    travelImportanceScore(text) > 0
+  );
 }
 
 async function findWikipediaAttractionListTitle(city, variants = []) {
@@ -630,11 +883,15 @@ function rankAndCleanPlaces({ city, rawPlaces, interests }) {
   );
   const seen = new Set();
   const ranked = rawPlaces
+    .map((place) => ({
+      ...place,
+      name: cleanTouristPlaceName(place.name),
+    }))
     .filter((place) => place.name && !isBadPlaceName(place.name))
     .map((place) => ({
       raw: place,
       normalizedName: normalizeName(place.name),
-      score: scorePlace(place, wantsReligion),
+      score: scorePlace(place, wantsReligion, interests),
     }))
     .filter(({ raw, normalizedName, score }) => {
       if (seen.has(normalizedName) || score < 20) {
@@ -651,7 +908,7 @@ function rankAndCleanPlaces({ city, rawPlaces, interests }) {
   return addCityHighlights(city, ranked, interests).slice(0, 10);
 }
 
-function scorePlace(place, wantsReligion) {
+function scorePlace(place, wantsReligion, interests = []) {
   const kinds = String(place.kinds ?? "").toLowerCase();
   const name = String(place.name ?? "").toLowerCase();
   const text = `${name} ${kinds}`;
@@ -674,13 +931,14 @@ function scorePlace(place, wantsReligion) {
     genericTouristKeywordScore(text) +
     travelImportanceScore(text);
   const weakPenalty = weakTravelPenalty(text);
-  const genericNamePenalty = isGenericWeakName(name) ? -18 : 0;
+  const peakPenalty = technicalPeakPenalty(text, interests);
+  const genericNamePenalty = isGenericWeakName(name) ? -55 : 0;
   const religiousPenalty =
     !wantsReligion && /church|religion|monasteries|synagogues/.test(kinds)
       ? -28
       : 0;
 
-  return rateScore + landmarkKindScore + qualityScore + weakPenalty + genericNamePenalty + religiousPenalty;
+  return rateScore + landmarkKindScore + qualityScore + weakPenalty + peakPenalty + genericNamePenalty + religiousPenalty;
 }
 
 function isLowPriorityReligiousPlace(place, wantsReligion) {
@@ -749,7 +1007,7 @@ function hillStationSignalScore(text) {
     score += 72;
   }
 
-  if (/\b(peak|pine forest|shooting point|echo rock|hidden valley|valley|waterfall|falls)\b/i.test(text)) {
+  if (/\b(pine forest|shooting point|echo rock|hidden valley|valley|waterfall|falls)\b/i.test(text)) {
     score += 46;
   }
 
@@ -765,6 +1023,10 @@ function lowPriorityReligiousPenalty(text, wantsReligion) {
     return 0;
   }
 
+  if (/\b(ganapati|ganpati|siddhivinayak|datta mandir|dattatreya|audumbar)\b/i.test(text)) {
+    return 0;
+  }
+
   if (/\b(jyotirlinga|mecca masjid|basilica|cathedral|unesco|world heritage|famous|major|important|landmark)\b/i.test(text)) {
     return 0;
   }
@@ -772,19 +1034,37 @@ function lowPriorityReligiousPenalty(text, wantsReligion) {
   return -110;
 }
 
+function technicalPeakPenalty(text, interests = []) {
+  const wantsTrekking = interests.some((interest) =>
+    /\b(trek|trekking|hike|hiking|adventure|mountain|peak|summit)\b/i.test(String(interest)),
+  );
+
+  if (wantsTrekking) {
+    return 0;
+  }
+
+  const looksLikeTechnicalPeak = /\b(peak|summit|tibba|shikar beh|indrasan)\b/i.test(text);
+  const looksLikeVisitorFriendlyStop = /\b(viewpoint|view point|pass|valley|lake|temple|market|waterfall|falls|park|garden|hot spring|museum|castle|fort|promenade)\b/i.test(text);
+
+  return looksLikeTechnicalPeak && !looksLikeVisitorFriendlyStop ? -130 : 0;
+}
+
 function isGenericWeakName(name) {
-  const normalized = String(name ?? "").trim().toLowerCase();
+  const cleanedName = cleanTouristPlaceName(name);
+  const lowerName = cleanedName.toLowerCase();
+  const normalized = normalizeName(cleanedName);
 
   return (
     normalized.length < 4 ||
     /^(garden|park|temple|mandir|church|mosque|museum|fort|lake|market)$/i.test(normalized) ||
-    /^(line|route|corridor)\s*\d*$/i.test(normalized)
+    /^(waterfallviewpoint|sunsetpoint|viewpoint)$/i.test(normalized) ||
+    /^(line|route|corridor)\s*\d*$/i.test(lowerName)
   );
 }
 
 function toPlaceCard(place) {
   return {
-    name: place.name,
+    name: cleanTouristPlaceName(place.name),
     address: "",
     rating: place.rate ?? null,
     type: place.kinds?.split(",")?.[0] ?? "point_of_interest",
@@ -796,23 +1076,64 @@ function toPlaceCard(place) {
   };
 }
 
-function rankPlaceCards({ city, results, interests = [] }) {
+function isDestinationOnlyPlace(place, city) {
+  const normalizedName = normalizeName(place.name);
+  const normalizedCity = normalizeName(city);
+
+  if (!normalizedName || !normalizedCity) {
+    return false;
+  }
+
+  if (normalizedName === normalizedCity) {
+    return true;
+  }
+
+  const nameWithoutIndia = normalizedName.replace(/india$/, "");
+  const cityWithoutIndia = normalizedCity.replace(/india$/, "");
+
+  if (nameWithoutIndia === cityWithoutIndia) {
+    return true;
+  }
+
+  const hasAttractionSignal = /\b(temple|fort|palace|museum|lake|beach|market|park|garden|waterfall|falls|viewpoint|pass|valley|cave|promenade|castle|bridge|ghat|hot spring)\b/i.test(
+    String(place.name ?? ""),
+  );
+
+  return !hasAttractionSignal && (
+    cityWithoutIndia.includes(nameWithoutIndia) ||
+    nameWithoutIndia.includes(cityWithoutIndia)
+  );
+}
+
+function rankPlaceCards({ city, results, interests = [], origin = null }) {
   const seen = new Set();
   const liveSources = results.filter((result) => result?.places?.length);
   const sorted = liveSources
     .flatMap((result) =>
       result.places.map((place, index) => ({
-        place,
+        place: {
+          ...place,
+          name: normalizeMarkerPlaceName(
+            cleanTouristPlaceName(place.name),
+            place.description,
+          ),
+          source: result.source,
+        },
         source: result.source,
         index,
       })),
     )
-    .filter(({ place }) => place?.name && !isBadPlaceName(place.name))
+    .filter(({ place, source }) =>
+      place?.name &&
+      !isBadPlaceName(place.name) &&
+      !isOutOfDestinationRange(place, origin, source, city) &&
+      !isDestinationOnlyPlace(place, city),
+    )
     .map(({ place, source, index }) => ({
       place,
       source,
       normalizedName: normalizeName(place.name),
-      score: scorePlaceCard(place, source, index, interests, city),
+      score: scorePlaceCard(place, source, index, interests, city, origin),
     }))
     .filter(({ normalizedName, score }) => {
       if (isDuplicateNormalizedName(normalizedName, seen) || score < 18) {
@@ -830,10 +1151,10 @@ function rankPlaceCards({ city, results, interests = [] }) {
     .filter(({ place }) =>
       !shouldDropLowPriorityReligiousCard(place, interests, hasNatureDepth),
     )
-    .slice(0, 12)
+    .slice(0, 30)
     .map(({ place }) => place);
 
-  const places = addCityHighlights(city, ranked, interests).slice(0, 10);
+  const places = addCityHighlights(city, ranked, interests).slice(0, 30);
 
   return {
     source: liveSources.map((result) => result.source).join(" + ") || "Travel place APIs",
@@ -842,20 +1163,27 @@ function rankPlaceCards({ city, results, interests = [] }) {
   };
 }
 
-function scorePlaceCard(place, source, index, interests = [], city = "") {
+function scorePlaceCard(place, source, index, interests = [], city = "", origin = null) {
   const text = placeSearchText(place);
   const wantsReligion = wantsReligionInterest(interests);
+  const distanceKm = placeDistanceFromOrigin(place, origin);
   const sourceBonus = /google/i.test(source)
     ? 10
-    : /wikipedia/i.test(source)
+    : /wikipedia attraction list/i.test(source)
       ? 13
       : /wikivoyage/i.test(source)
-      ? 9
+      ? 12
+      : /wikipedia place search/i.test(source)
+      ? 7
       : /openstreetmap/i.test(source)
       ? 6
       : 4;
-  const rankBonus = /wikipedia/i.test(source)
+  const rankBonus = /wikipedia attraction list/i.test(source)
     ? Math.max(0, 140 - index * 6)
+    : /wikivoyage/i.test(source)
+      ? Math.max(0, 82 - index * 5)
+    : /wikipedia place search/i.test(source)
+      ? Math.max(0, 28 - index * 3)
     : Math.max(0, 22 - index * 2);
   const rating = Number(place.rating);
   const ratingBonus = Number.isFinite(rating)
@@ -864,6 +1192,9 @@ function scorePlaceCard(place, source, index, interests = [], city = "") {
   const locationBonus = Number.isFinite(Number(place.location?.latitude ?? place.location?.lat))
     ? 2
     : 0;
+  const distanceBonus = Number.isFinite(distanceKm)
+    ? Math.max(-30, 28 - distanceKm * 0.8)
+    : 0;
   const referenceBonus = place.sourceQuality === "referenced" ? 12 : 0;
 
   return (
@@ -871,16 +1202,221 @@ function scorePlaceCard(place, source, index, interests = [], city = "") {
     rankBonus +
     ratingBonus +
     locationBonus +
+    distanceBonus +
     referenceBonus +
     destinationNamedLandmarkScore(place.name, city) +
+    localSourcePlaceSignalScore(place.name, text, city) +
+    localDestinationOuterRingPenalty(place, origin, city) +
+    farExcursionPenalty(text, city) +
+    minorLocalStopPenalty(place) +
     hillStationSignalScore(`${place.name ?? ""} ${place.type ?? ""}`.toLowerCase()) +
     touristSignalScore(text) +
     genericTouristKeywordScore(text) +
     travelImportanceScore(text) +
     lowPriorityReligiousPenalty(text, wantsReligion) +
+    technicalPeakPenalty(text, interests) +
     weakTravelPenalty(text) +
-    (isGenericWeakName(place.name) ? -18 : 0)
+    (isGenericWeakName(place.name) ? -55 : 0)
   );
+}
+
+function isOutOfDestinationRange(place, origin, source = "", city = "") {
+  const distanceKm = placeDistanceFromOrigin(place, origin);
+  const destinationIsLocal = isLocalDestinationName(city);
+  const text = placeSearchText(place);
+
+  if (destinationIsLocal && mentionsDifferentDistrict(text, city)) {
+    return true;
+  }
+
+  if (Number.isFinite(distanceKm)) {
+    const normalizedText = normalizeName(text);
+    const normalizedCity = normalizeName(city);
+
+    if (
+      destinationIsLocal &&
+      distanceKm > 35 &&
+      normalizedCity &&
+      !normalizedText.includes(normalizedCity) &&
+      /\b(lake|caves?|garden|statue|putala|temple|mandir|church|mosque|dargah|palace|fort)\b/i.test(String(place.name ?? ""))
+    ) {
+      return true;
+    }
+
+    if (
+      destinationIsLocal &&
+      distanceKm > 24 &&
+      normalizedCity &&
+      !normalizedText.includes(normalizedCity) &&
+      !/\b(audumbar|sagareshwar|wildlife|sanctuary|nature reserve|protected area|river|rafting|waterfall|falls|caves?)\b/i.test(text) &&
+      /\b(garden|statue|putala|temple|mandir|church|mosque|dargah|palace|fort|museum|bridge)\b/i.test(String(place.name ?? ""))
+    ) {
+      return true;
+    }
+
+    if (
+      destinationIsLocal &&
+      distanceKm > 42 &&
+      normalizedCity &&
+      !normalizedText.includes(normalizedCity) &&
+      /\b(wildlife|sanctuary|national park|protected area|waterfall|falls|beach)\b/i.test(text)
+    ) {
+      return true;
+    }
+
+    return distanceKm > 55;
+  }
+
+  if (!/wikipedia place search|wikivoyage/i.test(source)) {
+    return false;
+  }
+
+  const normalizedCity = normalizeName(city);
+
+  return normalizedCity && !normalizeName(text).includes(normalizedCity);
+}
+
+function isLocalDestinationName(city = "") {
+  return !/\b(north|south|old)\s+goa\b/i.test(city) &&
+    !/\b(region|district|state|maharashtra|karnataka|goa|kerala|rajasthan|himachal|uttarakhand)\b/i.test(city);
+}
+
+function mentionsDifferentDistrict(text = "", city = "") {
+  const normalizedCity = normalizeName(city);
+  const matches = [...String(text).matchAll(/\b([a-z][a-z\s.'-]{2,40}?)\s+district\b/gi)];
+
+  return matches.some((match) => {
+    const normalizedDistrict = normalizeName(match[1]);
+
+    return normalizedDistrict && normalizedCity && normalizedDistrict !== normalizedCity;
+  });
+}
+
+function placeDistanceFromOrigin(place, origin) {
+  const originLat = Number(origin?.lat);
+  const originLon = Number(origin?.lon);
+  const latitude = Number(place.location?.latitude ?? place.location?.lat);
+  const longitude = Number(place.location?.longitude ?? place.location?.lon);
+
+  if (![originLat, originLon, latitude, longitude].every(Number.isFinite)) {
+    return null;
+  }
+
+  return distanceInKm(originLat, originLon, latitude, longitude);
+}
+
+function minorLocalStopPenalty(place) {
+  const text = `${place.name ?? ""} ${place.type ?? ""}`.toLowerCase();
+
+  if (/\b(statue|putala)\b/.test(text)) {
+    return -70;
+  }
+
+  if (/\bgarden\b/.test(text) && !/\b(botanical|rose|brindavan|lalbagh|cubbon)\b/.test(text)) {
+    return -38;
+  }
+
+  if (/\blake\b/.test(text) && !/\b(boating|bird|sanctuary|palace)\b/.test(text)) {
+    return -18;
+  }
+
+  return 0;
+}
+
+function localSourcePlaceSignalScore(name = "", text = "", city = "") {
+  const combined = `${name} ${text}`.toLowerCase();
+  const normalizedCity = normalizeName(city);
+  let score = 0;
+
+  if (/\b(wildlife|sanctuary|nature reserve|protected area|forest)\b/.test(combined)) {
+    score += /\bmapped as a protected or nature area\b/.test(combined) &&
+      normalizedCity &&
+      !normalizeName(combined).includes(normalizedCity)
+      ? 12
+      : 58;
+  }
+
+  if (/\b(irwin|bridge|riverfront|ghat)\b/.test(combined)) {
+    score += 42;
+  }
+
+  if (/\b(ganapati|ganpati|siddhivinayak|datta mandir|dattatreya|audumbar)\b/.test(combined)) {
+    score += 46;
+  }
+
+  if (/\b(mahalaxmi|mahalakshmi|ambabai)\b/.test(combined) && /\bkolhapur\b/.test(`${city} ${combined}`)) {
+    score += 130;
+  }
+
+  if (/\bjyotiba\b/.test(combined) && /\bkolhapur\b/.test(`${city} ${combined}`)) {
+    score += 72;
+  }
+
+  if (/\b(panhala|rankala|new palace|shahu museum|chhatrapati shahu museum)\b/.test(combined) && /\bkolhapur\b/.test(`${city} ${combined}`)) {
+    score += 50;
+  }
+
+  if (/\b(museum|darbar hall|palace|fort)\b/.test(combined)) {
+    score += 28;
+  }
+
+  if (
+    normalizedCity &&
+    normalizeName(combined).includes(normalizedCity) &&
+    /\b(museum|fort|temple|mandir|bridge|market|sanctuary|wildlife|garden|park)\b/.test(combined)
+  ) {
+    score += 18;
+  }
+
+  if (/\b(statue|putala)\b/.test(combined) && !/\b(statue of unity|memorial|landmark|iconic|famous)\b/.test(combined)) {
+    score -= 60;
+  }
+
+  return score;
+}
+
+function localDestinationOuterRingPenalty(place, origin, city = "") {
+  if (!isLocalDestinationName(city)) {
+    return 0;
+  }
+
+  const distanceKm = placeDistanceFromOrigin(place, origin);
+
+  if (!Number.isFinite(distanceKm) || distanceKm <= 24) {
+    return 0;
+  }
+
+  const text = placeSearchText(place);
+  const normalizedCity = normalizeName(city);
+  const normalizedText = normalizeName(text);
+
+  if (normalizedCity && normalizedText.includes(normalizedCity)) {
+    return 0;
+  }
+
+  if (/\b(audumbar|sagareshwar|wildlife|sanctuary|nature reserve|protected area)\b/i.test(text)) {
+    return 0;
+  }
+
+  return distanceKm > 35 ? -75 : -45;
+}
+
+function farExcursionPenalty(text = "", city = "") {
+  if (!isLocalDestinationName(city)) {
+    return 0;
+  }
+
+  let penalty = 0;
+
+  if (/\b(on the way from [^.]{0,80}\bto\b|2\s*[-–]\s*3\s*hours?|two\s+to\s+three\s+hours?|80\s*km|90\s*km|100\s*km|120\s*km)\b/i.test(text)) {
+    penalty -= 48;
+  }
+
+  if (/\b(nearby|close to|within the city|city centre|central|old city)\b/i.test(text)) {
+    penalty += 15;
+  }
+
+  return penalty;
 }
 
 function destinationNamedLandmarkScore(name, city) {
@@ -892,7 +1428,7 @@ function destinationNamedLandmarkScore(name, city) {
   }
 
   const directSignaturePattern = new RegExp(
-    `^${normalizedCity}(palace|fort|zoo|lake|beach|hill|hills|peak|caves?|falls?)$`,
+    `^${normalizedCity}(palace|fort|zoo|lake|beach|hill|hills|caves?|falls?)$`,
     "i",
   );
 
@@ -900,7 +1436,7 @@ function destinationNamedLandmarkScore(name, city) {
     return 180;
   }
 
-  if (/\b(palace|fort|zoo|lake|beach|hill|peak|caves?|falls?)\b/i.test(String(name ?? ""))) {
+  if (/\b(palace|fort|zoo|lake|beach|hill|caves?|falls?)\b/i.test(String(name ?? ""))) {
     return 90;
   }
 
@@ -934,8 +1470,12 @@ function shouldDropLowPriorityReligiousCard(place, interests, hasNatureDepth) {
     return false;
   }
 
-  return !/\b(jyotirlinga|mecca masjid|basilica|cathedral|unesco|world heritage)\b/i.test(
-    String(place.name ?? ""),
+  if (/\b(ganapati|ganpati|siddhivinayak|dattatreya|datta mandir|audumbar|mahalaxmi|mahalakshmi|ambabai|jyotiba|temblai|temlabai)\b/i.test(text)) {
+    return false;
+  }
+
+  return !/\b(jyotirlinga|mecca masjid|basilica|cathedral|unesco|world heritage|famous|major|important|landmark|sacred|pilgrimage|spiritual center|shakti)\b/i.test(
+    text,
   );
 }
 
@@ -952,9 +1492,137 @@ function isDuplicateNormalizedName(normalizedName, seen) {
 }
 
 function parseWikivoyageListings(content) {
-  return extractWikivoyageListingBlocks(content)
-    .map((block) => parseWikivoyageListing(block))
-    .filter(Boolean);
+  return [
+    ...parseWikivoyageMarkers(content),
+    ...extractWikivoyageListingBlocks(content)
+      .map((block) => parseWikivoyageListing(block))
+      .filter(Boolean),
+    ...parseWikivoyageBulletListings(content),
+  ];
+}
+
+function parseWikivoyageMarkers(content) {
+  const markerPattern = /\{\{marker\b([\s\S]*?)\}\}\s*(?:&mdash;|-)?\s*([^\n]*)/gi;
+  const places = [];
+
+  for (const match of String(content ?? "").matchAll(markerPattern)) {
+    const fields = parseWikivoyageFields(match[1]);
+    const rawName = cleanTouristPlaceName(cleanWikiText(fields.name));
+    const description = cleanWikiText(match[2] || fields.content || "");
+    const name = normalizeMarkerPlaceName(rawName, description);
+    const latitude = Number(fields.lat);
+    const longitude = Number(fields.long || fields.lon);
+
+    if (!name || shouldSkipWikipediaPlaceName(name) || isGenericWeakName(name)) {
+      continue;
+    }
+
+    places.push({
+      name,
+      address: "",
+      rating: description ? 7 : 6,
+      type: inferPlaceType(`${name} ${description}`),
+      description,
+      sourceQuality: description ? "referenced" : "",
+      location: {
+        latitude: Number.isFinite(latitude) ? latitude : undefined,
+        longitude: Number.isFinite(longitude) ? longitude : undefined,
+      },
+      url: "",
+    });
+  }
+
+  return places;
+}
+
+function normalizeMarkerPlaceName(name, description = "") {
+  if (
+    name &&
+    !/\bbeach\b/i.test(name) &&
+    /\bbeaches?\b/i.test(description)
+  ) {
+    return `${name} Beach`;
+  }
+
+  return name;
+}
+
+function parseWikivoyageBulletListings(content) {
+  const seen = new Set();
+  const places = [];
+  const lines = String(content ?? "")
+    .split(/\r?\n/)
+    .filter((line) => /^\*\s*/.test(line));
+
+  for (const line of lines) {
+    const boldPlace = parseBoldWikivoyageBullet(line);
+
+    if (boldPlace) {
+      const normalized = normalizeName(boldPlace.name);
+
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        places.push(boldPlace);
+      }
+    }
+
+    for (const nearbyPlace of parseNearbyWikivoyagePlaces(line)) {
+      const normalized = normalizeName(nearbyPlace.name);
+
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        places.push(nearbyPlace);
+      }
+    }
+  }
+
+  return places;
+}
+
+function parseBoldWikivoyageBullet(line) {
+  const match = line.match(/^\*\s*'''(?:\[\[([^|\]]+)(?:\|([^\]]+))?\]\]|([^':]+?))\s*:?\s*'''[:\s-]*(.*)$/);
+  const name = cleanTouristPlaceName(cleanWikiText(match?.[2] || match?.[1] || match?.[3] || ""));
+  const description = cleanWikiText(match?.[4] || line);
+
+  if (!name || shouldSkipWikipediaPlaceName(name)) {
+    return null;
+  }
+
+  return {
+    name,
+    address: "",
+    rating: 7,
+    type: inferPlaceType(`${name} ${description}`),
+    description,
+    sourceQuality: "referenced",
+    location: null,
+    url: "",
+  };
+}
+
+function parseNearbyWikivoyagePlaces(line) {
+  if (!/\bnearby places to visit include\b/i.test(line)) {
+    return [];
+  }
+
+  const listText = cleanWikiText(line)
+    .replace(/^.*?nearby places to visit include:?\s*/i, "")
+    .replace(/\.$/, "");
+
+  return listText
+    .split(/\s*,\s*|\s+and\s+/i)
+    .map((name) => cleanTouristPlaceName(cleanWikiText(name)))
+    .filter((name) => name && !shouldSkipWikipediaPlaceName(name))
+    .map((name) => ({
+      name,
+      address: "",
+      rating: 7,
+      type: inferPlaceType(name),
+      description: `${name} is listed by Wikivoyage as a nearby place to visit from this destination.`,
+      sourceQuality: "referenced",
+      location: null,
+      url: "",
+    }));
 }
 
 function parseWikipediaAttractionList(content) {
@@ -997,7 +1665,7 @@ function extractLeadWikiLinkName(line) {
   const match = line.match(/^\*\s*(?:''')?\s*\[\[([^|\]]+)(?:\|([^\]]+))?\]\]/);
   const rawName = match?.[2] || match?.[1] || "";
 
-  return cleanWikiText(rawName);
+  return cleanTouristPlaceName(cleanWikiText(rawName));
 }
 
 function shouldSkipWikipediaPlaceName(name) {
@@ -1049,15 +1717,9 @@ function braceDelta(line) {
 }
 
 function parseWikivoyageListing(block) {
-  const fields = {};
-  const fieldPattern = /\|\s*([a-zA-Z][a-zA-Z0-9_-]*)\s*=\s*([\s\S]*?)(?=(?:\s*\|\s*[a-zA-Z][a-zA-Z0-9_-]*\s*=)|(?:\n\|\s*[a-zA-Z][a-zA-Z0-9_-]*\s*=)|(?:\n?\}\}))/g;
+  const fields = parseWikivoyageFields(block);
 
-  for (const match of block.matchAll(fieldPattern)) {
-    const key = match[1].toLowerCase();
-    fields[key] = match[2].trim();
-  }
-
-  const name = cleanWikiText(fields.name);
+  const name = cleanTouristPlaceName(cleanWikiText(fields.name));
 
   if (!name) {
     return null;
@@ -1084,6 +1746,18 @@ function parseWikivoyageListing(block) {
   };
 }
 
+function parseWikivoyageFields(block) {
+  const fields = {};
+  const fieldPattern = /\|\s*([a-zA-Z][a-zA-Z0-9_-]*)\s*=\s*([\s\S]*?)(?=(?:\s*\|\s*[a-zA-Z][a-zA-Z0-9_-]*\s*=)|(?:\n\|\s*[a-zA-Z][a-zA-Z0-9_-]*\s*=)|(?:\n?\}\})|$)/g;
+
+  for (const match of String(block ?? "").matchAll(fieldPattern)) {
+    const key = match[1].toLowerCase();
+    fields[key] = match[2].trim();
+  }
+
+  return fields;
+}
+
 function cleanWikiText(value) {
   return String(value ?? "")
     .replace(/\{\{(?:km|mi|ft|station)\|([^}|]+).*?\}\}/gi, "$1")
@@ -1098,11 +1772,11 @@ function cleanWikiText(value) {
 function inferPlaceType(value) {
   const text = String(value ?? "").toLowerCase();
 
-  if (/waterfall|falls|dam|lake|river|ghat|sanctuary|wildlife|bird|botanical|garden|park/.test(text)) {
+  if (/waterfall|falls|dam|lake|river|ghat|sanctuary|wildlife|bird|botanical|garden|park|beach|coast|cliff/.test(text)) {
     return "nature";
   }
 
-  if (/fort|castle|palace|wada|heritage|monument|memorial|samadhi|zero mile/.test(text)) {
+  if (/fort|castle|palace|wada|heritage|monument|memorial|samadhi|zero mile|bridge/.test(text)) {
     return "heritage";
   }
 
@@ -1124,11 +1798,23 @@ function inferPlaceType(value) {
 function rankAndCleanOsmPlaces({ city, rawPlaces, interests, origin }) {
   const seen = new Set();
   const ranked = rawPlaces
-    .filter((place) => place.tags?.name && !isBadPlaceName(place.tags.name))
+    .map((place) => ({
+      ...place,
+      tags: {
+        ...(place.tags ?? {}),
+        name: cleanTouristPlaceName(place.tags?.name),
+      },
+    }))
+    .filter((place) =>
+      place.tags?.name &&
+      !isBadPlaceName(place.tags.name) &&
+      !isGenericWeakName(place.tags.name) &&
+      !isDestinationOnlyPlace({ name: place.tags.name }, city),
+    )
     .map((place) => ({
       raw: place,
       normalizedName: normalizeName(place.tags.name),
-      score: scoreOsmPlace(place, origin),
+      score: scoreOsmPlace(place, origin, interests, city),
     }))
     .filter(({ normalizedName, score }) => {
       if (seen.has(normalizedName) || score < 22) {
@@ -1139,13 +1825,13 @@ function rankAndCleanOsmPlaces({ city, rawPlaces, interests, origin }) {
       return true;
     })
     .sort((a, b) => b.score - a.score)
-    .slice(0, 12)
+    .slice(0, 35)
     .map(({ raw }) => toOsmPlaceCard(raw));
 
-  return addCityHighlights(city, ranked, interests).slice(0, 10);
+  return addCityHighlights(city, ranked, interests).slice(0, 30);
 }
 
-function scoreOsmPlace(place, origin) {
+function scoreOsmPlace(place, origin, interests = [], city = "") {
   const tags = place.tags ?? {};
   const text = Object.values(tags).join(" ").toLowerCase();
   const distanceKm = distanceInKm(
@@ -1157,7 +1843,9 @@ function scoreOsmPlace(place, origin) {
   let score = 12;
 
   score += touristSignalScore(text) + genericTouristKeywordScore(text) + travelImportanceScore(text);
+  score += localSourcePlaceSignalScore(tags.name, text, city);
   score += weakTravelPenalty(text);
+  score += technicalPeakPenalty(text, interests);
 
   if (tags.tourism === "attraction" || tags.tourism === "museum" || tags.historic) {
     score += 20;
@@ -1167,12 +1855,22 @@ function scoreOsmPlace(place, origin) {
     score += 10;
   }
 
+  if (tags.boundary === "protected_area" || tags.waterway === "river" || /rock|cliff|cave_entrance/.test(String(tags.natural ?? ""))) {
+    score += 16;
+  }
+
   if (Number.isFinite(distanceKm)) {
     score += Math.max(0, 12 - distanceKm / 3);
+
+    if (distanceKm > 85) {
+      score -= 45;
+    } else if (distanceKm > 55) {
+      score -= 20;
+    }
   }
 
   if (isGenericWeakName(tags.name)) {
-    score -= 18;
+    score -= 55;
   }
 
   return score;
@@ -1180,18 +1878,54 @@ function scoreOsmPlace(place, origin) {
 
 function toOsmPlaceCard(place) {
   const tags = place.tags ?? {};
+  const name = cleanTouristPlaceName(tags.name);
 
   return {
-    name: tags.name,
+    name,
     address: "",
     rating: null,
-    type: tags.tourism ?? tags.historic ?? tags.amenity ?? tags.leisure ?? tags.natural ?? "point_of_interest",
+    type: tags.tourism ?? tags.historic ?? tags.amenity ?? tags.leisure ?? tags.boundary ?? tags.natural ?? tags.waterway ?? "point_of_interest",
+    description: buildOsmPlaceDescription(name, tags),
     location: {
       latitude: Number(place.lat ?? place.center?.lat),
       longitude: Number(place.lon ?? place.center?.lon),
     },
     url: `https://www.openstreetmap.org/${place.type}/${place.id}`,
   };
+}
+
+function buildOsmPlaceDescription(name, tags = {}) {
+  const text = `${name} ${Object.values(tags).join(" ")}`.toLowerCase();
+
+  if (/\b(bridge|irwin)\b/.test(text)) {
+    return `${name} is mapped as a bridge or river-side landmark, useful for a short view stop and local route context.`;
+  }
+
+  if (/\bbeach\b/.test(text)) {
+    return `${name} is mapped as a beach stop, useful for coastal time, cafes, sunset light, and keeping the day route relaxed.`;
+  }
+
+  if (/\b(wildlife|sanctuary|nature_reserve|protected_area|forest)\b/.test(text)) {
+    return `${name} is mapped as a protected or nature area, best used for greenery, wildlife context, and daylight outdoor time.`;
+  }
+
+  if (tags.tourism === "museum" || /\bmuseum\b/.test(text)) {
+    return `${name} is mapped as a museum, useful for local history, exhibits, and a calmer indoor culture stop.`;
+  }
+
+  if (/\b(fort|castle|palace|historic)\b/.test(text)) {
+    return `${name} is mapped as a heritage stop, useful for older local history, architecture, and context.`;
+  }
+
+  if (tags.amenity === "place_of_worship" || /\b(temple|mandir|dargah|mosque|church)\b/.test(text)) {
+    return `${name} is mapped as a place of worship, best treated as a short devotional and cultural stop with local timing in mind.`;
+  }
+
+  if (tags.leisure === "park" || tags.leisure === "garden" || /\b(park|garden)\b/.test(text)) {
+    return `${name} is mapped as a local green space, useful only as a light break when it fits the same area.`;
+  }
+
+  return "";
 }
 
 function distanceInKm(latA, lonA, latB, lonB) {
@@ -1213,42 +1947,8 @@ function distanceInKm(latA, lonA, latB, lonB) {
 }
 
 function addCityHighlights(city, places, interests = []) {
-  const normalizedCity = normalizeName(city);
-  const highlightsKey = Object.keys(cityHighlights).find((key) =>
-    normalizedCity.includes(key),
-  );
-  const highlights = highlightsKey ? cityHighlights[highlightsKey] : [];
-  const placesByName = new Map(
-    places.map((place) => [normalizeName(place.name), place]),
-  );
-  const seen = new Set();
-  const orderedHighlights = highlights.map((highlight) => {
-    const normalized = normalizeName(highlight.name);
-    const livePlace = placesByName.get(normalized);
-
-    seen.add(normalized);
-
-    return livePlace
-      ? {
-          ...livePlace,
-          name: highlight.name,
-          type: highlight.type,
-          rating: highlight.rating ?? livePlace.rating,
-        }
-      : highlight;
-  });
-  const remainingPlaces = places.filter((place) => {
-    const normalized = normalizeName(place.name);
-
-    if (seen.has(normalized)) {
-      return false;
-    }
-
-    seen.add(normalized);
-    return true;
-  });
-
-  return orderSeasonalPlaces([...orderedHighlights, ...remainingPlaces], interests);
+  void city;
+  return orderSeasonalPlaces(places, interests);
 }
 
 function orderSeasonalPlaces(places, interests = []) {
@@ -1292,131 +1992,7 @@ function seasonalScore(place, interestText) {
 function normalizeName(value) {
   return String(value ?? "")
     .toLowerCase()
+    .replace(/\bwildife\b/g, "wildlife")
+    .replace(/laxmi/g, "lakshmi")
     .replace(/[^a-z0-9]/g, "");
-}
-
-const cityHighlights = {
-  mumbai: [
-    { name: "Gateway of India", type: "monument", rating: 7 },
-    { name: "Marine Drive", type: "promenade", rating: 7 },
-    { name: "Chhatrapati Shivaji Maharaj Terminus", type: "heritage", rating: 7 },
-    { name: "Elephanta Caves", type: "historic", rating: 7 },
-    { name: "Chhatrapati Shivaji Maharaj Vastu Sangrahalaya", type: "museum", rating: 6 },
-    { name: "Colaba Causeway", type: "market", rating: 6 },
-    { name: "Juhu Beach", type: "beach", rating: 6 },
-    { name: "Bandra-Worli Sea Link", type: "landmark", rating: 6 },
-  ],
-  goa: [
-    { name: "Basilica of Bom Jesus", type: "heritage", rating: 8, zone: "Old Goa" },
-    { name: "Se Cathedral", type: "heritage", rating: 8, zone: "Old Goa" },
-    { name: "Fontainhas Latin Quarter", type: "heritage", rating: 7, zone: "Panjim" },
-    { name: "Dona Paula View Point", type: "viewpoint", rating: 6, zone: "Panjim" },
-    { name: "Fort Aguada", type: "fort", rating: 8, zone: "North Goa" },
-    { name: "Calangute Beach", type: "beach", rating: 7, zone: "North Goa" },
-    { name: "Baga Beach", type: "beach", rating: 7, zone: "North Goa" },
-    { name: "Anjuna Beach", type: "beach", rating: 7, zone: "North Goa" },
-    { name: "Chapora Fort", type: "fort", rating: 7, zone: "North Goa" },
-    { name: "Dudhsagar Falls", type: "waterfall", rating: 8, zone: "Nature" },
-    { name: "Colva Beach", type: "beach", rating: 7, zone: "South Goa" },
-    { name: "Palolem Beach", type: "beach", rating: 7, zone: "South Goa" },
-    { name: "Cabo de Rama Fort", type: "fort", rating: 6, zone: "South Goa" },
-    { name: "Anjuna Flea Market", type: "market", rating: 6, zone: "North Goa" },
-  ],
-  kolhapur: [
-    { name: "Shree Mahalaxmi Ambabai Temple", type: "temple", rating: 8 },
-    { name: "New Palace and Shahu Museum", type: "museum", rating: 7 },
-    { name: "Panhala Fort", type: "fort", rating: 7 },
-    { name: "Jyotiba Temple", type: "temple", rating: 6 },
-    { name: "Rankala Lake", type: "lake", rating: 7 },
-    { name: "Siddhagiri Gramjivan Museum", type: "museum", rating: 6 },
-    { name: "Bhavani Mandap", type: "heritage", rating: 6 },
-    { name: "Town Hall Museum", type: "museum", rating: 6 },
-    { name: "Khasbag Wrestling Stadium", type: "culture", rating: 5 },
-    { name: "Kolhapur Misal and Tambada-Pandhara Rassa food trail", type: "food", rating: 7 },
-  ],
-  satara: [
-    { name: "Kaas Plateau", type: "nature", rating: 8 },
-    { name: "Thoseghar Waterfalls", type: "waterfall", rating: 8 },
-    { name: "Ajinkyatara Fort", type: "fort", rating: 7 },
-    { name: "Sajjangad Fort", type: "fort", rating: 7 },
-    { name: "Chalkewadi Windmill Farms", type: "viewpoint", rating: 7 },
-    { name: "Natraj Mandir", type: "temple", rating: 6 },
-    { name: "Baramotichi Vihir", type: "heritage", rating: 6 },
-    { name: "Shivsagar Lake and Koyna backwaters", type: "nature", rating: 7 },
-    { name: "Satara local market", type: "market", rating: 5 },
-    { name: "Yamai Devi Temple, Aundh", type: "temple", rating: 6 },
-  ],
-  pune: [
-    { name: "Shaniwar Wada", type: "heritage", rating: 8 },
-    { name: "Dagdusheth Halwai Ganpati Temple", type: "temple", rating: 8 },
-    { name: "Lal Mahal", type: "heritage", rating: 6 },
-    { name: "Aga Khan Palace", type: "museum", rating: 8 },
-    { name: "Raja Dinkar Kelkar Museum", type: "museum", rating: 7 },
-    { name: "Pataleshwar Cave Temple", type: "cave temple", rating: 7 },
-    { name: "Sinhagad Fort", type: "fort", rating: 8 },
-    { name: "Parvati Hill", type: "viewpoint", rating: 7 },
-    { name: "Vetal Tekdi", type: "viewpoint", rating: 6 },
-    { name: "Mulshi Dam", type: "nature", rating: 7 },
-    { name: "Panshet Dam", type: "nature", rating: 6 },
-    { name: "Lonavala / Khandala hill-station extension", type: "hill station", rating: 7 },
-    { name: "Saras Baug", type: "garden", rating: 6 },
-    { name: "Pune Okayama Friendship Garden", type: "garden", rating: 6 },
-    { name: "Tulshibaug Market", type: "market", rating: 6 },
-    { name: "Koregaon Park cafe walk", type: "food", rating: 6 },
-    { name: "FC Road food street", type: "food", rating: 6 },
-  ],
-  sangli: [
-    { name: "Shri Ganapati Mandir", type: "temple", rating: 7 },
-    { name: "Sangli Fort", type: "fort", rating: 6 },
-    { name: "Sagareshwar Wildlife Sanctuary", type: "wildlife", rating: 7 },
-    { name: "Dandoba Hill Forest Preserve", type: "nature", rating: 6 },
-    { name: "Shri Datta Mandir, Audumbar", type: "temple", rating: 6 },
-    { name: "Sangameshwar Temple", type: "temple", rating: 6 },
-    { name: "Bahubali Hill Temple", type: "viewpoint", rating: 6 },
-    { name: "Meerasaheb Dargah, Miraj", type: "heritage", rating: 5 },
-    { name: "Irwin Bridge", type: "landmark", rating: 5 },
-    { name: "Sangli Turmeric Market", type: "market", rating: 5 },
-  ],
-  karad: [
-    { name: "Pritisangam", type: "river confluence", rating: 8 },
-    { name: "Yashwantrao Chavan Samadhi", type: "memorial", rating: 7 },
-    { name: "Krishnamai Temple", type: "temple", rating: 7 },
-    { name: "Agashiv Caves", type: "buddhist caves", rating: 7 },
-    { name: "Sadashivgad Fort", type: "fort", rating: 7 },
-    { name: "Vasantgad Fort", type: "fort", rating: 6 },
-    { name: "Chaphal Ram Mandir", type: "temple", rating: 6 },
-    { name: "Koyna Dam", type: "nature", rating: 7 },
-    { name: "Thoseghar Falls", type: "waterfall", rating: 7 },
-    { name: "Mahabaleshwar / Panchgani hill station extension", type: "hill station", rating: 7 },
-    { name: "Karad local market", type: "market", rating: 5 },
-    { name: "Krishna Ghat", type: "riverfront", rating: 6 },
-  ],
-};
-
-function mockPlaces(city = "destination", interests = []) {
-  const normalizedCity = normalizeName(city);
-  const highlightsKey = Object.keys(cityHighlights).find((key) =>
-    normalizedCity.includes(key),
-  );
-
-  if (highlightsKey) {
-    return {
-      source: "Curated city highlights fallback",
-      city,
-      places: orderSeasonalPlaces(cityHighlights[highlightsKey], interests).slice(0, 10),
-    };
-  }
-
-  const food = interests.includes("food") || interests.includes("restaurants");
-
-  return {
-    source: "Low-confidence local planning fallback",
-    city,
-    places: [
-      { name: `${city} central stay area`, type: "local base", rating: null },
-      { name: food ? `${city} local food area` : `${city} verified nearby attraction`, type: food ? "food" : "confirm before visiting", rating: null },
-      { name: `${city} main market or old-city area`, type: "local culture", rating: null },
-      { name: `${city} flexible rest or food block`, type: "flexible block", rating: null },
-    ],
-  };
 }

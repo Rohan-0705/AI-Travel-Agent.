@@ -34,11 +34,11 @@ const MessageBubble = ({ message }) => {
 
   return (
     <div className="flex justify-start">
-      <div className="w-full max-w-[38rem] rounded-lg border border-slate-200 bg-white p-3 text-slate-700 shadow-sm">
-        <div className="mb-2 flex items-center justify-between gap-3 sm:mb-3">
-          <div className="flex min-w-0 items-center gap-2 text-base font-semibold text-slate-950 sm:text-lg">
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#e8f8f5] text-[#0f8f83] sm:h-8 sm:w-8">
-              <Bot size={17} />
+      <div className="w-full rounded-xl border border-slate-200 bg-white p-3 text-slate-700 shadow-sm">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2 text-[1rem] font-semibold text-slate-950">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[#e8f8f5] text-[#0f8f83]">
+              <Bot size={16} />
             </span>
             <span className="truncate">{message.title ?? "Travel AI"}</span>
           </div>
@@ -52,9 +52,9 @@ const MessageBubble = ({ message }) => {
                 isSpeaking,
                 setIsSpeaking,
               })}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-[#0f8f83] hover:text-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83]"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-slate-200 text-slate-500 transition hover:border-[#0f8f83] hover:text-[#0f8f83] focus:outline-none focus:ring-2 focus:ring-[#0f8f83]"
             >
-              {isSpeaking ? <VolumeX size={17} /> : <Volume2 size={17} />}
+              {isSpeaking ? <VolumeX size={15} /> : <Volume2 size={15} />}
             </button>
           ) : null}
         </div>
@@ -148,6 +148,18 @@ const StructuredPlan = ({ plan }) => {
         </div>
       </div>
 
+      {plan.destinationBrief ? (
+        <div className="rounded-lg border border-slate-200 bg-white p-3">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#60746f]">
+            <Info size={14} className="text-[#0f8f83]" />
+            <span>Destination brief</span>
+          </div>
+          <p className="mt-2 text-[0.92rem] leading-6 text-slate-700">
+            {plan.destinationBrief}
+          </p>
+        </div>
+      ) : null}
+
       <div className="grid gap-2">
         {plan.days.map((day) => (
           <article
@@ -186,15 +198,31 @@ const StructuredPlan = ({ plan }) => {
               </div>
             ) : null}
             {day.places?.length ? (
-              <div className="mt-auto flex flex-wrap gap-1.5 pt-2 sm:pt-3">
+              <div className="mt-auto grid gap-2 pt-2 sm:grid-cols-2 sm:pt-3 xl:grid-cols-3">
                 {day.places.map((place) => (
-                  <span
+                  <div
                     key={place.name}
-                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600"
+                    className="rounded-md border border-slate-200 bg-white p-2"
                   >
-                    <MapPin size={12} className="text-[#0f8f83]" />
-                    {place.name}
-                  </span>
+                    <div className="flex items-start gap-1.5">
+                      <MapPin size={13} className="mt-0.5 shrink-0 text-[#0f8f83]" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold leading-5 text-slate-950">
+                          {place.name}
+                        </p>
+                        {place.famousFor ? (
+                          <p className="mt-0.5 text-[0.68rem] font-semibold uppercase tracking-wide text-[#0f8f83]">
+                            {place.famousFor}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    {place.brief ? (
+                      <p className="mt-1.5 text-[0.78rem] leading-5 text-slate-600">
+                        {place.brief}
+                      </p>
+                    ) : null}
+                  </div>
                 ))}
               </div>
             ) : null}
@@ -213,11 +241,11 @@ const BookingHandoff = ({ booking }) => {
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-[#f7faf8] p-3 sm:p-4">
-      <p className="text-sm font-semibold uppercase text-[#0f8f83] sm:text-base">
+    <div className="rounded-lg border border-slate-200 bg-[#f7faf8] p-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#0f8f83]">
         Booking-ready next steps
       </p>
-      <p className="mt-2 text-[1rem] leading-8 text-slate-600 sm:text-[1.05rem]">{booking.note}</p>
+      <p className="mt-2 text-[0.9rem] leading-6 text-slate-600">{booking.note}</p>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
         {booking.actions.map((action) => (
           <a
@@ -225,7 +253,7 @@ const BookingHandoff = ({ booking }) => {
             href={action.url}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-base font-semibold text-slate-700 transition hover:border-[#0f8f83] hover:text-[#0f8f83]"
+            className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[0.86rem] font-medium text-slate-700 transition hover:border-[#0f8f83] hover:text-[#0f8f83]"
           >
             <span>{action.label}</span>
             <ExternalLink size={14} />
@@ -242,13 +270,13 @@ const TravelAnswerCard = ({ answer }) => {
   }
 
   return (
-    <div className="mt-4 space-y-3">
-      <div className="rounded-lg border border-slate-200 bg-[#f7faf8] p-4">
-        <div className="flex items-center gap-2 text-sm font-semibold uppercase text-slate-500">
+    <div className="mt-3 space-y-3">
+      <div className="rounded-lg border border-slate-200 bg-[#f7faf8] p-3">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
           <Info size={15} className="text-[#0f8f83]" />
           <span>{answer.label}</span>
         </div>
-        <p className="mt-2 text-[1.02rem] leading-8 text-slate-700 sm:text-[1.08rem]">
+        <p className="mt-2 text-[0.9rem] leading-6 text-slate-700">
           {answer.summary}
         </p>
       </div>
@@ -264,7 +292,7 @@ const TravelAnswerCard = ({ answer }) => {
                 {item.label}
               </p>
               {item.value ? (
-                <p className="mt-1 text-[1rem] leading-8 text-slate-600 sm:text-[1.05rem]">
+                <p className="mt-1 text-[0.9rem] leading-6 text-slate-600">
                   {item.value}
                 </p>
               ) : null}
@@ -274,10 +302,10 @@ const TravelAnswerCard = ({ answer }) => {
       ) : null}
 
       {answer.bullets?.length ? (
-        <ul className="space-y-2 rounded-lg border border-slate-200 bg-white p-4">
+        <ul className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
           {answer.bullets.slice(0, 4).map((bullet) => (
-            <li key={bullet} className="flex gap-2 text-[1rem] leading-8 text-slate-700 sm:text-[1.05rem]">
-              <CheckCircle2 size={16} className="mt-1.5 shrink-0 text-[#0f8f83]" />
+            <li key={bullet} className="flex gap-2 text-[0.9rem] leading-6 text-slate-700">
+              <CheckCircle2 size={15} className="mt-1 shrink-0 text-[#0f8f83]" />
               <span>{bullet}</span>
             </li>
           ))}
@@ -293,25 +321,25 @@ const FoodGuide = ({ guide }) => {
   }
 
   return (
-    <div className="mt-4 space-y-3">
-      <div className="rounded-lg border border-slate-200 bg-[#f7faf8] p-4">
-        <div className="flex items-center gap-2 text-sm font-semibold uppercase text-slate-500">
+    <div className="mt-3 space-y-3">
+      <div className="rounded-lg border border-slate-200 bg-[#f7faf8] p-3">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
           <Utensils size={15} className="text-[#0f8f83]" />
           <span>Local food style</span>
         </div>
-        <p className="mt-2 text-[1.02rem] leading-8 text-slate-700 sm:text-[1.08rem]">{guide.style}</p>
+        <p className="mt-2 text-[0.9rem] leading-6 text-slate-700">{guide.style}</p>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-sm font-semibold uppercase text-[#0f8f83]">
+        <div className="rounded-lg border border-slate-200 bg-white p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#0f8f83]">
             Must try
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {guide.mustTry?.slice(0, 8).map((item) => (
               <span
                 key={item}
-                className="rounded-md border border-slate-200 bg-[#fbfdfb] px-2.5 py-1.5 text-sm font-medium text-slate-700"
+                className="rounded-md border border-slate-200 bg-[#fbfdfb] px-2.5 py-1.5 text-[0.82rem] font-medium text-slate-700"
               >
                 {item}
               </span>
@@ -319,14 +347,14 @@ const FoodGuide = ({ guide }) => {
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-sm font-semibold uppercase text-[#0f8f83]">
+        <div className="rounded-lg border border-slate-200 bg-white p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#0f8f83]">
             Where to eat
           </p>
           <ul className="mt-3 space-y-2">
             {guide.areas?.slice(0, 4).map((area) => (
-              <li key={area} className="flex gap-2 text-[1rem] leading-8 text-slate-700 sm:text-[1.05rem]">
-                <MapPin size={15} className="mt-1.5 shrink-0 text-[#0f8f83]" />
+              <li key={area} className="flex gap-2 text-[0.9rem] leading-6 text-slate-700">
+                <MapPin size={14} className="mt-1 shrink-0 text-[#0f8f83]" />
                 <span>{area}</span>
               </li>
             ))}
@@ -334,16 +362,16 @@ const FoodGuide = ({ guide }) => {
         </div>
       </div>
 
-      <div className="rounded-lg border border-amber-200 bg-[#fff9ed] p-4">
-        <p className="text-sm font-semibold uppercase text-[#9a6100]">
+      <div className="rounded-lg border border-amber-200 bg-[#fff9ed] p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#9a6100]">
           Budget and tips
         </p>
-        <p className="mt-2 text-base font-semibold text-slate-950">
+        <p className="mt-2 text-[0.92rem] font-semibold text-slate-950">
           {guide.budget}
         </p>
         <ul className="mt-3 space-y-2">
           {guide.tips?.slice(0, 3).map((tip) => (
-            <li key={tip} className="text-[1rem] leading-8 text-slate-700 sm:text-[1.05rem]">
+            <li key={tip} className="text-[0.9rem] leading-6 text-slate-700">
               {tip}
             </li>
           ))}
