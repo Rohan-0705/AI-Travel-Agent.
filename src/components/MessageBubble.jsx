@@ -1,12 +1,12 @@
 import { useState } from "react";
 import {
   Bot,
-  CalendarDays,
   CheckCircle2,
   CloudSun,
   ExternalLink,
   Info,
   MapPin,
+  Route,
   Utensils,
   UserRound,
   Volume2,
@@ -121,7 +121,7 @@ const StructuredPlan = ({ plan }) => {
       <div className="grid gap-2 sm:grid-cols-3">
         <div className="rounded-lg border border-slate-200 bg-[#f7faf8] p-2.5">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500">
-            <CalendarDays size={14} className="text-[#0f8f83]" />
+            <Route size={14} className="text-[#0f8f83]" />
             <span>Plan</span>
           </div>
           <p className="mt-1 text-sm font-semibold text-slate-950">

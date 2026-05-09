@@ -493,7 +493,6 @@ function isBareDestinationPlanRequest({
 function hasTripPlanningContext(tripContext = {}) {
   return (
     Number(tripContext.days) > 1 ||
-    Boolean(tripContext.selectedStartDate && tripContext.selectedEndDate) ||
     /\b\d+\s+itinerary\s+days?\b/i.test(String(tripContext.dates ?? ""))
   );
 }

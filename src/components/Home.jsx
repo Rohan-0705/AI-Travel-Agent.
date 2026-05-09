@@ -480,20 +480,10 @@ const Home = () => {
     [activeTrip.id, tripSettingsByTrip],
   );
   const configuredActiveTrip = useMemo(() => {
-    const selectedStartDate =
-      activeTripSettings.travelStartDate ?? activeTripSettings.travelDate ?? "";
-    const selectedEndDate = activeTripSettings.travelEndDate ?? "";
-    const selectedDays = selectedStartDate && selectedEndDate
-      ? calculateInclusiveDays(selectedStartDate, selectedEndDate)
-      : Number(activeTripSettings.days ?? activeTrip.days);
-
     return {
       ...activeTrip,
-      days: selectedDays,
-      dates: formatDateRange(selectedStartDate, selectedEndDate, activeTrip.dates),
-      selectedDate: selectedStartDate,
-      selectedStartDate,
-      selectedEndDate,
+      days: Number(activeTripSettings.days ?? activeTrip.days),
+      dates: "flexible dates",
       travelers: Number(activeTripSettings.travelers ?? activeTrip.travelers),
     };
   }, [activeTrip, activeTripSettings]);
@@ -533,16 +523,6 @@ const Home = () => {
     },
     [livePlan?.destination, promptTripContext.destination],
   );
-
-  const handleTripSettingsChange = (updates) => {
-    setTripSettingsByTrip((current) => ({
-      ...current,
-      [activeTrip.id]: {
-        ...(current[activeTrip.id] ?? {}),
-        ...updates,
-      },
-    }));
-  };
 
   const handleSendMessage = (text, options = {}) => {
     const cleanText = String(text ?? "").trim();
@@ -970,7 +950,6 @@ const Home = () => {
             quickPrompts={quickPrompts}
             connectionStatus={socketState}
             isStreaming={isStreaming}
-            onTripSettingsChange={handleTripSettingsChange}
             onOpenSidebar={() => setIsSidebarOpen(true)}
             onOpenPreview={() => setIsPreviewOpen(true)}
             onTuneTrip={handleTuneTrip}
@@ -1124,39 +1103,6 @@ function slugifyFilename(value) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80) || "travel-plan";
-}
-
-function formatDateForTrip(value) {
-  const date = new Date(`${value}T00:00:00`);
-
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatDateRange(startValue, endValue, fallback) {
-  if (!startValue) {
-    return fallback;
-  }
-
-  if (!endValue) {
-    return `${formatDateForTrip(startValue)} - choose end date`;
-  }
-
-  return `${formatDateForTrip(startValue)} - ${formatDateForTrip(endValue)}`;
-}
-
-function calculateInclusiveDays(startValue, endValue) {
-  const start = new Date(`${startValue}T00:00:00`);
-  const end = new Date(`${endValue}T00:00:00`);
-
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return 1;
-  }
-
-  return Math.max(Math.round((end - start) / 86400000) + 1, 1);
 }
 
 function readStoredList(key) {
