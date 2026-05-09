@@ -91,6 +91,18 @@ export function extractTripDetails(message, tripContext = {}) {
   if (intent === "travel_advice" && place) {
     intent = "place_info";
   }
+  if (
+    intent === "travel_advice" &&
+    !place &&
+    isBareDestinationPlanRequest({
+      message: normalizedMessage,
+      extractedDestination,
+      destination,
+      tripContext,
+    })
+  ) {
+    intent = "trip_plan";
+  }
   const origin = extractOrigin(normalizedMessage);
   const topic = extractTopic(lower);
   const interests = intent === "food_info" ? ["food", "restaurants", "local cuisine"] : extractInterests(lower);
@@ -443,6 +455,49 @@ function extractTopic(lower) {
   return "general";
 }
 
+function isBareDestinationPlanRequest({
+  message,
+  extractedDestination,
+  destination,
+  tripContext = {},
+}) {
+  const cleanedMessage = String(message ?? "")
+    .replace(/[?.!]+$/g, "")
+    .trim();
+  const wordCount = cleanedMessage.split(/\s+/).filter(Boolean).length;
+
+  if (!cleanedMessage || wordCount > 4 || /\d/.test(cleanedMessage)) {
+    return false;
+  }
+
+  const explicitDestination =
+    Boolean(extractedDestination) ||
+    isKnownDestination(cleanedMessage) ||
+    isScopedDestination(cleanedMessage);
+
+  if (!explicitDestination) {
+    return false;
+  }
+
+  const sameAsDestination =
+    sameDestination(cleanedMessage, destination) ||
+    sameDestination(cleanDestination(cleanedMessage), destination);
+
+  if (!sameAsDestination) {
+    return false;
+  }
+
+  return hasTripPlanningContext(tripContext) || explicitDestination;
+}
+
+function hasTripPlanningContext(tripContext = {}) {
+  return (
+    Number(tripContext.days) > 1 ||
+    Boolean(tripContext.selectedStartDate && tripContext.selectedEndDate) ||
+    /\b\d+\s+itinerary\s+days?\b/i.test(String(tripContext.dates ?? ""))
+  );
+}
+
 function extractSeason(lower) {
   if (/\b(monsoon|mansoon|rainy|rain|rains|water\s*falls?|waterfalls?)\b/.test(lower)) {
     return "monsoon";
@@ -535,6 +590,12 @@ function extractDestination(message) {
     }
   }
 
+  const bareDestination = extractBareDestination(message);
+
+  if (bareDestination) {
+    return titleCase(resolveCityAlias(bareDestination));
+  }
+
   const compactMessage = message.toLowerCase().replace(/\s+/g, "");
   const knownCity = Object.keys(cityToIata).find((city) => {
     const compactCity = city.replace(/\s+/g, "");
@@ -550,6 +611,25 @@ function extractDestination(message) {
   }
 
   return "";
+}
+
+function extractBareDestination(message = "") {
+  const cleaned = String(message ?? "")
+    .replace(/[?.!]+$/g, "")
+    .trim();
+  const wordCount = cleaned.split(/\s+/).filter(Boolean).length;
+
+  if (
+    !cleaned ||
+    wordCount > 4 ||
+    /\d/.test(cleaned) ||
+    /[^a-zA-Z\s-]/.test(cleaned) ||
+    /\b(food|foods|cuisine|weather|places?|attractions?|budget|cost|transport|travel|travelling|traveling|stay|stays|safety|safe|tell|about|where|what|how|should)\b/i.test(cleaned)
+  ) {
+    return "";
+  }
+
+  return cleanDestination(cleaned);
 }
 
 function cleanDestination(value) {
