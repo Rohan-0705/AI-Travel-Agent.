@@ -446,7 +446,7 @@ async function improveWeakStructuredPlanWithProvider({
 }) {
   if (
     plan.intent !== "trip_plan" ||
-    !needsProviderItineraryRepair({ structuredPlan, toolResults })
+    !needsProviderItineraryRepair({ structuredPlan, toolResults, plan })
   ) {
     return structuredPlan;
   }
@@ -464,7 +464,10 @@ Return only valid JSON. Create a destination-specific itinerary from travel know
 Do not use generic placeholders such as "main market or walkable center", "nearby viewpoint or nature walk", "museum, temple, or cultural stop", or "relaxed shopping and departure buffer".
 Respect the requested destination or sub-region exactly. If the user asks North Goa, do not include South Goa or Old Goa unless explicitly requested.
 Prefer real, visitable attractions over nearby towns, hotels, generic cafes, technical peaks, or far-away places.
-Every place must include: name, type, famousFor, brief.
+If the weak plan repeats the same category, replace it with a balanced mix of the destination's strongest attractions, local areas, nature/heritage/coast/markets, and only the most important devotional stops unless the user asked for a pilgrimage trip.
+Do not use dishes, cuisine items, generic activities, hotels, airports, or source artifacts as itinerary stops.
+For long regional/state trips, create the exact requested number of days with 2-3 real stops per day, grouped by practical bases or regions, and include transfer/rest buffers only as schedule notes, not fake places.
+Every place must include: name, type, famousFor, brief, bestTime, visitDuration.
 Brief must say what the place is known for, such as sunset, beach, rafting, wildlife, caves, market, fort, temple, viewpoint, food, or heritage.`,
       user: JSON.stringify({
         userRequest: message,
@@ -486,6 +489,8 @@ Brief must say what the place is known for, such as sunset, beach, rafting, wild
                   type: "string",
                   famousFor: "string",
                   brief: "string",
+                  bestTime: "string",
+                  visitDuration: "string",
                 },
               ],
               schedule: [
@@ -501,6 +506,8 @@ Brief must say what the place is known for, such as sunset, beach, rafting, wild
               type: "string",
               famousFor: "string",
               brief: "string",
+              bestTime: "string",
+              visitDuration: "string",
             },
           ],
         },
@@ -513,19 +520,23 @@ Brief must say what the place is known for, such as sunset, beach, rafting, wild
       allowUnmatchedPlaces: shouldAllowProviderPlaceKnowledge({
         structuredPlan,
         toolResults,
-      }),
+      }) || hasPoorItineraryDiversity(structuredPlan, plan?.interests),
     });
   } catch {
     return structuredPlan;
   }
 }
 
-function needsProviderItineraryRepair({ structuredPlan, toolResults }) {
+function needsProviderItineraryRepair({ structuredPlan, toolResults, plan = {} }) {
   if (isWeakStructuredPlan(structuredPlan)) {
     return true;
   }
 
   if (hasThinItineraryCoverage(structuredPlan)) {
+    return true;
+  }
+
+  if (hasPoorItineraryDiversity(structuredPlan, plan?.interests)) {
     return true;
   }
 
@@ -558,6 +569,37 @@ function hasThinItineraryCoverage(structuredPlan) {
     places.length < Math.max(3, days.length * 2);
 }
 
+function hasPoorItineraryDiversity(structuredPlan, interests = []) {
+  if (isReligionFocusedRequest(interests)) {
+    return false;
+  }
+
+  const places = structuredPlan.days
+    ?.flatMap((day) => day.places ?? []) ?? [];
+
+  if (places.length < 6) {
+    return false;
+  }
+
+  const categoryCounts = places.reduce((counts, place) => {
+    const category = getPlaceDiversityCategory(place);
+
+    counts[category] = (counts[category] ?? 0) + 1;
+    return counts;
+  }, {});
+  const devotionalCount = categoryCounts.devotion ?? 0;
+  const indoorCultureCount = (categoryCounts.devotion ?? 0) + (categoryCounts.museum ?? 0);
+  const variedOutdoorCount =
+    (categoryCounts.coast ?? 0) +
+    (categoryCounts.nature ?? 0) +
+    (categoryCounts.river ?? 0) +
+    (categoryCounts.local ?? 0);
+
+  return devotionalCount >= 3 ||
+    indoorCultureCount / places.length >= 0.62 ||
+    (variedOutdoorCount === 0 && indoorCultureCount >= 4);
+}
+
 function shouldAllowProviderPlaceKnowledge({ structuredPlan, toolResults }) {
   const placesResult = findToolResult(toolResults, "getPlaces");
   const source = String(placesResult?.source ?? structuredPlan.placeSource ?? "");
@@ -583,6 +625,9 @@ function isWeakGeneratedPlaceName(name = "", destination = "") {
 
   return (
     isDestinationOnlyName(name, destination) ||
+    isDishLikePlaceName(name) ||
+    /\bairport\b/i.test(text) ||
+    /^(trekking\s*(?:and|&)\s*camping|camping|kitesurfing beach|paragliding beach|small waterfall|nature walk|water sports|watersports|scuba diving|river rafting)$/i.test(text) ||
     /\b(main market or walkable center|old-town or heritage area|nearby viewpoint or nature walk|local food street or cafe area|museum, temple, or cultural stop|relaxed shopping and departure buffer)\b/i.test(text) ||
     (/\b(or)\b/i.test(text) && /\b(market|walkable|viewpoint|nature|museum|temple|cultural|shopping|departure|food street|cafe area|heritage area)\b/i.test(text))
   );
@@ -691,7 +736,8 @@ function isAcceptableProviderPlace(place, destination = "") {
   if (
     !place?.name ||
     isWeakGeneratedPlaceName(place.name, destination) ||
-    isDestinationOnlyName(place.name, destination)
+    isDestinationOnlyName(place.name, destination) ||
+    isDishLikePlaceName(place.name)
   ) {
     return false;
   }
@@ -704,7 +750,7 @@ function isAcceptableProviderPlace(place, destination = "") {
     return false;
   }
 
-  return /\b(beach|fort|castle|palace|museum|heritage|temple|mandir|church|cathedral|dargah|monastery|market|bazaar|lane|street|promenade|viewpoint|view point|sunset|river|rafting|wildlife|sanctuary|forest|cave|caves|rock|falls|waterfall|lake|ghat|park|garden|food|nightlife)\b/i.test(text);
+  return /\b(beach|fort|castle|palace|museum|heritage|temple|mandir|church|cathedral|dargah|monastery|market|bazaar|lane|street|restaurant|cafe|promenade|viewpoint|view point|sunset|river|rafting|wildlife|sanctuary|forest|cave|caves|rock|falls|waterfall|lake|ghat|park|garden|nightlife)\b/i.test(text);
 }
 
 function normalizeGeneratedDay({ day, index, destination, fallbackDay, daysCount }) {
@@ -751,6 +797,8 @@ function normalizeGeneratedPlace(place) {
     type: cleanGeneratedText(place?.type),
     famousFor: cleanGeneratedText(place?.famousFor),
     brief: cleanGeneratedText(place?.brief),
+    bestTime: cleanGeneratedText(place?.bestTime),
+    visitDuration: cleanGeneratedText(place?.visitDuration),
   };
 }
 
@@ -798,22 +846,179 @@ function buildDayPlaceGroups({ placeList, daysCount }) {
   const coveredPlaces = ensurePlaceCoverage({
     placeList,
   }).slice(0, daysCount * 3);
-  const baseCount = coveredPlaces.length
-    ? Math.floor(coveredPlaces.length / daysCount)
-    : 0;
-  const remainder = coveredPlaces.length % daysCount;
-  const groups = [];
-  let cursor = 0;
 
-  for (let index = 0; index < daysCount; index += 1) {
-    const placesForDay = Math.min(3, baseCount + (index < remainder ? 1 : 0));
-    const places = coveredPlaces.slice(cursor, cursor + placesForDay);
-    cursor += placesForDay;
-
-    groups.push({ places });
+  if (!coveredPlaces.length) {
+    return Array.from({ length: daysCount }, () => ({ places: [] }));
   }
 
-  return groups;
+  const anchors = selectDayAnchors(coveredPlaces, daysCount);
+  const anchorNames = new Set(anchors.map((place) => normalizeText(place.name)));
+  const groups = Array.from({ length: daysCount }, (_item, index) => ({
+    places: anchors[index] ? [anchors[index]] : [],
+  }));
+
+  for (const place of coveredPlaces) {
+    if (anchorNames.has(normalizeText(place.name))) {
+      continue;
+    }
+
+    const bestGroup = groups
+      .map((group, index) => ({ group, index }))
+      .filter(({ group }) => group.places.length < 3)
+      .map(({ group, index }) => ({
+        index,
+        score: scoreDayGroupFit(group.places, place),
+      }))
+      .sort((a, b) => b.score - a.score)[0];
+
+    if (bestGroup) {
+      groups[bestGroup.index].places.push(place);
+    }
+  }
+
+  return groups.map((group) => ({
+    places: orderPlacesForDay(group.places),
+  }));
+}
+
+function selectDayAnchors(places = [], daysCount = 3) {
+  const anchors = [];
+  const usedNames = new Set();
+  const usedCategories = new Set();
+  const ranked = places
+    .map((place, index) => ({
+      place,
+      index,
+      category: getPlaceDiversityCategory(place),
+    }))
+    .sort((a, b) => {
+      const priorityDiff = categoryDiversityPriority(b.category) - categoryDiversityPriority(a.category);
+
+      return Math.abs(priorityDiff) >= 18 ? priorityDiff : a.index - b.index;
+    });
+
+  for (const candidate of ranked) {
+    if (anchors.length >= daysCount) {
+      break;
+    }
+
+    const normalizedName = normalizeText(candidate.place.name);
+
+    if (!normalizedName || usedNames.has(normalizedName) || usedCategories.has(candidate.category)) {
+      continue;
+    }
+
+    anchors.push(candidate.place);
+    usedNames.add(normalizedName);
+    usedCategories.add(candidate.category);
+  }
+
+  for (const place of places) {
+    if (anchors.length >= daysCount) {
+      break;
+    }
+
+    const normalizedName = normalizeText(place.name);
+
+    if (!normalizedName || usedNames.has(normalizedName)) {
+      continue;
+    }
+
+    anchors.push(place);
+    usedNames.add(normalizedName);
+  }
+
+  return anchors;
+}
+
+function scoreDayGroupFit(groupPlaces = [], place) {
+  if (!groupPlaces.length) {
+    return 0;
+  }
+
+  const anchor = groupPlaces[0];
+  const distanceScores = groupPlaces
+    .map((existingPlace) => placeDistanceKm(existingPlace, place))
+    .filter(Number.isFinite)
+    .map((distance) => Math.max(-80, 80 - distance * 2.4));
+  const distanceScore = distanceScores.length
+    ? Math.max(...distanceScores)
+    : 0;
+  const themeScore = groupPlaces.some((existingPlace) =>
+    getSinglePlaceTheme(existingPlace) === getSinglePlaceTheme(place)
+  )
+    ? 36
+    : 0;
+  const zoneScore = anchor.zone && place.zone
+    ? sameNormalizedPlace(anchor.zone, place.zone)
+      ? 48
+      : -24
+    : 0;
+
+  return distanceScore + themeScore + zoneScore - groupPlaces.length * 4;
+}
+
+function orderPlacesForDay(places = []) {
+  return [...places].sort((a, b) => placeDayOrder(a) - placeDayOrder(b));
+}
+
+function placeDayOrder(place) {
+  const text = `${place?.name ?? ""} ${place?.type ?? ""} ${place?.famousFor ?? ""}`.toLowerCase();
+
+  if (/\b(museum|palace|fort|castle|heritage|temple|mandir|church|cathedral|basilica|caves?|wildlife|sanctuary|waterfall|falls)\b/.test(text)) {
+    return 1;
+  }
+
+  if (/\b(market|bazaar|street|lane|food|nightlife|sunset|promenade|beach|coast)\b/.test(text)) {
+    return 3;
+  }
+
+  return 2;
+}
+
+function getSinglePlaceTheme(place) {
+  return getDayTheme([place]).key;
+}
+
+function placeDistanceKm(placeA, placeB) {
+  const coordinatesA = getPlaceCoordinates(placeA);
+  const coordinatesB = getPlaceCoordinates(placeB);
+
+  if (!coordinatesA || !coordinatesB) {
+    return null;
+  }
+
+  return distanceInKm(
+    coordinatesA.latitude,
+    coordinatesA.longitude,
+    coordinatesB.latitude,
+    coordinatesB.longitude,
+  );
+}
+
+function getPlaceCoordinates(place) {
+  const latitude = Number(place?.location?.latitude ?? place?.location?.lat);
+  const longitude = Number(place?.location?.longitude ?? place?.location?.lon ?? place?.location?.lng);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return { latitude, longitude };
+}
+
+function distanceInKm(latA, lonA, latB, lonB) {
+  const toRadians = (value) => (value * Math.PI) / 180;
+  const radiusKm = 6371;
+  const dLat = toRadians(latB - latA);
+  const dLon = toRadians(lonB - lonA);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(latA)) *
+      Math.cos(toRadians(latB)) *
+      Math.sin(dLon / 2) ** 2;
+
+  return 2 * radiusKm * Math.asin(Math.sqrt(a));
 }
 
 function enrichItineraryPlace(place, { destination = "" } = {}) {
@@ -821,6 +1026,8 @@ function enrichItineraryPlace(place, { destination = "" } = {}) {
   const type = String(place?.type ?? "").trim();
   const sourceDescription = cleanPlaceDescription(place?.description);
   const providedBrief = cleanPlaceDescription(place?.brief);
+  const providedBestTime = cleanPlaceDescription(place?.bestTime);
+  const providedVisitDuration = cleanPlaceDescription(place?.visitDuration);
   const famousFor = cleanGeneratedText(place?.famousFor) || inferPlaceFamousFor({
     name: rawName,
     type,
@@ -844,6 +1051,20 @@ function enrichItineraryPlace(place, { destination = "" } = {}) {
     generatedBrief,
     sourceDescription,
   });
+  const bestTime = providedBestTime || buildPlaceBestTime({
+    name,
+    type,
+    destination,
+    famousFor,
+    description: sourceDescription,
+  });
+  const visitDuration = providedVisitDuration || buildVisitDuration({
+    name,
+    type,
+    famousFor,
+    description: sourceDescription,
+  });
+  const openingHint = cleanGeneratedText(place?.openingHint) || buildOpeningHint(place);
 
   return {
     ...place,
@@ -851,6 +1072,9 @@ function enrichItineraryPlace(place, { destination = "" } = {}) {
     type,
     famousFor,
     brief,
+    bestTime,
+    visitDuration,
+    openingHint,
   };
 }
 
@@ -990,7 +1214,7 @@ function inferPlaceFamousFor({ name = "", type = "", destination = "", descripti
     return "caves and rock formations";
   }
 
-  if (/\b(sunsets?|chapora|vagator|dona paula|promenade|viewpoint|view point|sykes point|fort aguada|cabo de rama|reis magos)\b/.test(text)) {
+  if (/\b(sunsets?|chapora|vagator|dona paula|marine drive|queen'?s necklace|sykes point|fort aguada|cabo de rama|reis magos)\b/.test(text)) {
     return "sunset views";
   }
 
@@ -1033,11 +1257,61 @@ function inferPlaceFamousFor({ name = "", type = "", destination = "", descripti
   return type || "local stop";
 }
 
+function isReligionFocusedRequest(interests = []) {
+  return interests.some((interest) =>
+    /\b(temple|mandir|church|cathedral|mosque|dargah|monastery|spiritual|devotion|pilgrimage|religion|religious)\b/i.test(String(interest)),
+  );
+}
+
+function isDishLikePlaceName(name = "") {
+  const text = String(name ?? "").toLowerCase();
+
+  if (/\b(food street|food court|food market|night market|restaurant|cafe|café|bazaar|market|lane|street)\b/i.test(text)) {
+    return false;
+  }
+
+  return /\b(poitabhat|pitha|bhat|pickles?|pickle|chutney|curry|thali|pav|misal|vada|poha|upma|ladoo|laddu|sweet|sweets|tea|chai|rice|fish|snack|snacks|dish|dishes)\b/i.test(text);
+}
+
+function getPlaceDiversityCategory(place = {}) {
+  const text = `${place.name ?? ""} ${place.type ?? ""} ${place.famousFor ?? ""} ${place.brief ?? ""} ${place.description ?? ""}`.toLowerCase();
+
+  if (/\b(beach|coast|sea|shore|promenade|calangute|baga|candolim|anjuna|vagator|palolem|colva|benaulim|sinquerim)\b/.test(text)) {
+    return "coast";
+  }
+
+  if (/\b(wildlife|sanctuary|national park|nature reserve|forest|waterfall|falls|lake|garden|park|viewpoint|view point|valley|ghat|backwater|rafting|river rafting|cave|caves|rock|cliff)\b/.test(text)) {
+    return "nature";
+  }
+
+  if (/\b(bridge|riverfront|river-side|riverside|ghat|confluence|promenade)\b/.test(text)) {
+    return "river";
+  }
+
+  if (/\b(fort|castle|palace|wada|heritage|monument|old town|historic|history|architecture|caves?)\b/.test(text)) {
+    return "heritage";
+  }
+
+  if (/\b(market|bazaar|food|cafe|restaurant|street|lane|shopping|nightlife|local culture|old-city|old city)\b/.test(text)) {
+    return "local";
+  }
+
+  if (/\b(museum|gallery|darbar|exhibit|art|science)\b/.test(text)) {
+    return "museum";
+  }
+
+  if (/\b(temple|mandir|shrine|dattatraya|datta|ganapati|ganpati|church|cathedral|basilica|mosque|dargah|monastery|sacred|pilgrimage|devotion|place_of_worship)\b/.test(text)) {
+    return "devotion";
+  }
+
+  return "attraction";
+}
+
 function buildPlaceBrief({ name = "", type = "", destination = "", famousFor = "" }) {
   const text = `${name} ${type} ${destination}`.toLowerCase();
 
   if (famousFor === "sunset views") {
-    return `${name} is best used for sea-facing views, golden-hour photos, and a slower sunset stop.`;
+    return `${name} is best used for open views, golden-hour photos, and a slower sunset stop.`;
   }
 
   if (famousFor === "beach time") {
@@ -1061,6 +1335,14 @@ function buildPlaceBrief({ name = "", type = "", destination = "", famousFor = "
   }
 
   if (famousFor === "nature") {
+    if (/\b(waterfall|falls)\b/i.test(text)) {
+      return `${name} is a scenic waterfall stop, best kept for daylight when paths, viewpoints, and weather are easier to manage.`;
+    }
+
+    if (/\b(lake|dam|river|ghat|backwater)\b/i.test(text)) {
+      return `${name} is useful for water views, calmer walking time, photos, and a lighter break between bigger sightseeing blocks.`;
+    }
+
     return `${name} is best for greenery, fresh air, views, or a lighter nature break within the itinerary.`;
   }
 
@@ -1073,6 +1355,10 @@ function buildPlaceBrief({ name = "", type = "", destination = "", famousFor = "
   }
 
   if (famousFor === "caves and rock formations") {
+    if (!/\b(cave|caves|rock|gorge)\b/i.test(name)) {
+      return `${name} works best as a daylight base for nearby caves, waterfalls, viewpoints, and high-rainfall scenery.`;
+    }
+
     return `${name} is known for its cave, rock, or gorge setting, so keep it for daylight and wear shoes with grip.`;
   }
 
@@ -1093,6 +1379,90 @@ function buildPlaceBrief({ name = "", type = "", destination = "", famousFor = "
   }
 
   return `${name} is included as a practical ${type || "local"} stop near ${destination}, useful for balancing the route.`;
+}
+
+function buildPlaceBestTime({
+  name = "",
+  type = "",
+  famousFor = "",
+  description = "",
+} = {}) {
+  const text = `${name} ${type} ${famousFor} ${description}`.toLowerCase();
+
+  if (/\b(wildlife|sanctuary|forest|bird|national park|nature camp)\b/.test(text)) {
+    return "Early morning is best for cooler weather, quieter trails, and better wildlife or bird activity.";
+  }
+
+  if (/\b(rafting|rapids|canoeing|kayaking|water sports?)\b/.test(text)) {
+    return "Book a morning or early-afternoon slot, when operators have more daylight buffer and conditions are easier to manage.";
+  }
+
+  if (/\b(waterfall|falls)\b/.test(text)) {
+    return "Visit in daylight, especially monsoon or post-monsoon, and avoid heavy-rain hours or closed paths.";
+  }
+
+  if (/\b(sunset|chapora|vagator|dona paula|promenade|viewpoint|view point|fort aguada|cabo de rama|reis magos)\b/.test(text)) {
+    return "Late afternoon to sunset is the strongest window for views, photos, and a slower finish.";
+  }
+
+  if (/\b(beach|coast|sea|shore|sand)\b/.test(text)) {
+    return "Go early morning for calm beach time or late afternoon for softer light and cooler walking.";
+  }
+
+  if (/\b(market|bazaar|flea|shopping|street|lane|food|nightlife|tito)\b/.test(text)) {
+    return "Late afternoon or evening works best, when shops, food stalls, and the local atmosphere are more active.";
+  }
+
+  if (/\b(temple|mandir|shrine|dargah|mosque|church|cathedral|basilica|monastery|pilgrimage|devotion)\b/.test(text)) {
+    return "Morning or early evening is usually best for calmer visits, softer light, and easier crowd management.";
+  }
+
+  if (/\b(museum|gallery|palace|heritage|fort|castle|monument|caves?)\b/.test(text)) {
+    return "Morning is best for cooler weather, clearer photos, and more time before closing hours.";
+  }
+
+  if (/\b(lake|garden|park|river|ghat|backwater|valley|hill|pass|nature)\b/.test(text)) {
+    return "Morning or late afternoon is best, when heat is lower and the light is better for views.";
+  }
+
+  return "Keep it in daylight, preferably morning or late afternoon, and check current opening hours before going.";
+}
+
+function buildVisitDuration({
+  name = "",
+  type = "",
+  famousFor = "",
+  description = "",
+} = {}) {
+  const text = `${name} ${type} ${famousFor} ${description}`.toLowerCase();
+
+  if (/\b(wildlife|sanctuary|national park|nature camp|rafting|water sports?|backwater|trek|hike)\b/.test(text)) {
+    return "Plan 3-5 hours, plus transfer time.";
+  }
+
+  if (/\b(beach|market|bazaar|food|nightlife|promenade|lake|waterfall|falls|garden|park)\b/.test(text)) {
+    return "Plan 1.5-3 hours.";
+  }
+
+  if (/\b(museum|palace|fort|castle|caves?|heritage|church|cathedral|basilica|temple|mandir|monastery|dargah)\b/.test(text)) {
+    return "Plan 45-90 minutes.";
+  }
+
+  return "Plan 45-120 minutes.";
+}
+
+function buildOpeningHint(place = {}) {
+  if (typeof place.openNow === "boolean") {
+    return place.openNow
+      ? "Listed as open now by the place source."
+      : "Listed as closed now; confirm hours before going.";
+  }
+
+  const firstHoursLine = Array.isArray(place.openingHours)
+    ? cleanGeneratedText(place.openingHours[0])
+    : "";
+
+  return firstHoursLine ? `Hours sample: ${firstHoursLine}` : "";
 }
 
 function buildDestinationBrief({
@@ -1126,8 +1496,8 @@ function buildDestinationBrief({
 
 function inferDestinationStrengths(places = []) {
   const categories = [
-    { label: "beaches and coastal walks", pattern: /\b(beach|coastal|sea|sand|shore|promenade)\b/i },
-    { label: "sunset viewpoints", pattern: /\b(sunset|golden-hour|viewpoint|view point|fort aguada|chapora|vagator)\b/i },
+    { label: "beaches and coastal walks", pattern: /\b(beach|coastal|sea|sand|seafront)\b/i },
+    { label: "viewpoints and scenic stops", pattern: /\b(sunset|golden-hour|viewpoint|view point|fort aguada|chapora|vagator)\b/i },
     { label: "forts and heritage", pattern: /\b(heritage|fort|castle|palace|monument|church|cathedral|basilica|old town)\b/i },
     { label: "nature and outdoor time", pattern: /\b(nature|wildlife|forest|sanctuary|river|rafting|waterfall|falls|cave|park|garden|valley)\b/i },
     { label: "food, markets, and nightlife", pattern: /\b(food|market|bazaar|shopping|cafe|restaurant|lane|street|nightlife|tito)\b/i },
@@ -1149,6 +1519,7 @@ function inferDestinationStrengths(places = []) {
 
 function prepareItineraryPlaces({ destination, places = [], interests = [], scope = null, daysCount = 3 }) {
   const seen = new Set();
+  const minimum = Math.max(5, daysCount * 2);
   const cleanPlaces = places
     .filter((place) => isUsableItineraryPlace(place, destination, interests))
     .filter((place) => isPlaceInDestinationScope(place, scope))
@@ -1163,15 +1534,25 @@ function prepareItineraryPlaces({ destination, places = [], interests = [], scop
       return true;
     });
 
-  return preferStrongItineraryPlaces({
+  const strongPlaces = preferStrongItineraryPlaces({
     places: cleanPlaces,
     destination,
-    minimum: Math.max(5, daysCount * 2),
+    minimum,
+    interests,
+  });
+
+  return balanceItineraryPlaceDiversity({
+    places: strongPlaces,
+    interests,
+    daysCount,
+    minimum,
   });
 }
 
-function preferStrongItineraryPlaces({ places = [], destination = "", minimum = 6 }) {
-  const strongPlaces = places.filter((place) => !isBackupItineraryPlace(place, destination));
+function preferStrongItineraryPlaces({ places = [], destination = "", minimum = 6, interests = [] }) {
+  const strongPlaces = places.filter((place) =>
+    !isBackupItineraryPlace(place, destination, interests),
+  );
 
   if (strongPlaces.length >= minimum) {
     return strongPlaces;
@@ -1179,22 +1560,117 @@ function preferStrongItineraryPlaces({ places = [], destination = "", minimum = 
 
   return [
     ...strongPlaces,
-    ...places.filter((place) => isBackupItineraryPlace(place, destination)),
+    ...places.filter((place) => isBackupItineraryPlace(place, destination, interests)),
   ];
 }
 
-function isBackupItineraryPlace(place, destination = "") {
+function balanceItineraryPlaceDiversity({ places = [], interests = [], daysCount = 3, minimum = 6 }) {
+  if (isReligionFocusedRequest(interests) || places.length <= 4) {
+    return places;
+  }
+
+  const target = Math.min(places.length, Math.max(minimum, daysCount * 3));
+  const categoryCaps = {
+    devotion: Math.max(1, Math.min(2, Math.ceil(daysCount / 2))),
+    museum: Math.max(1, Math.min(2, daysCount)),
+    river: Math.max(1, Math.min(2, daysCount)),
+    local: Math.max(1, Math.min(2, daysCount)),
+    nature: Math.max(2, Math.min(4, daysCount + 1)),
+    coast: Math.max(2, Math.min(4, daysCount + 1)),
+    heritage: Math.max(2, Math.min(4, daysCount + 1)),
+    attraction: Math.max(1, Math.min(3, daysCount)),
+  };
+  const buckets = new Map();
+
+  places.forEach((place, index) => {
+    const category = getPlaceDiversityCategory(place);
+    const bucket = buckets.get(category) ?? [];
+
+    bucket.push({ place, index });
+    buckets.set(category, bucket);
+  });
+
+  const categories = [...buckets.keys()].sort((a, b) => {
+    const firstA = buckets.get(a)?.[0]?.index ?? Number.MAX_SAFE_INTEGER;
+    const firstB = buckets.get(b)?.[0]?.index ?? Number.MAX_SAFE_INTEGER;
+    const priorityDiff = categoryDiversityPriority(b) - categoryDiversityPriority(a);
+
+    return Math.abs(priorityDiff) >= 18 ? priorityDiff : firstA - firstB;
+  });
+  const picked = [];
+  const pickedNames = new Set();
+  const categoryCounts = {};
+  let added = true;
+
+  while (picked.length < target && added) {
+    added = false;
+
+    for (const category of categories) {
+      const bucket = buckets.get(category) ?? [];
+      const cap = categoryCaps[category] ?? 3;
+
+      if ((categoryCounts[category] ?? 0) >= cap) {
+        continue;
+      }
+
+      const next = bucket.find(({ place }) => !pickedNames.has(normalizeText(place.name)));
+
+      if (!next) {
+        continue;
+      }
+
+      picked.push(next.place);
+      pickedNames.add(normalizeText(next.place.name));
+      categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
+      added = true;
+
+      if (picked.length >= target) {
+        break;
+      }
+    }
+  }
+
+  const remainder = places.filter((place) => !pickedNames.has(normalizeText(place.name)));
+
+  return [...picked, ...remainder];
+}
+
+function categoryDiversityPriority(category) {
+  const priorities = {
+    coast: 95,
+    nature: 90,
+    heritage: 82,
+    river: 76,
+    local: 72,
+    museum: 60,
+    devotion: 54,
+    attraction: 46,
+  };
+
+  return priorities[category] ?? 40;
+}
+
+function isBackupItineraryPlace(place, destination = "", interests = []) {
   const text = `${place?.name ?? ""} ${place?.type ?? ""} ${place?.address ?? ""} ${place?.description ?? ""}`;
   const destinationText = String(destination ?? "").toLowerCase();
   const isKolhapur = /\bkolhapur\b/i.test(destinationText);
+  const wantsReligion = isReligionFocusedRequest(interests);
 
   if (/\blocal green space, useful only as a light break\b/i.test(text)) {
     return true;
   }
 
   if (/\b(is mapped as a place of worship|mapped as a place of worship)\b/i.test(text) &&
-    !/\b(temblai|temlabai|audumbar|famous|major|important|sacred|pilgrimage)\b/i.test(text) &&
+    !wantsReligion &&
+    !/\b(temblai|temlabai|audumbar|famous|major|important|sacred|pilgrimage|historic|landmark)\b/i.test(text) &&
     !(isKolhapur && /\b(mahalaxmi|mahalakshmi|ambabai|jyotiba)\b/i.test(text))
+  ) {
+    return true;
+  }
+
+  if (!wantsReligion &&
+    /\b(temple|mandir|ganapati|ganpati|datta mandir|dattatreya|place_of_worship)\b/i.test(text) &&
+    !/\b(famous|major|important|historic|landmark|sacred|pilgrimage|audumbar|mahalaxmi|mahalakshmi|ambabai|jyotiba|basilica|cathedral|unesco|world heritage)\b/i.test(text)
   ) {
     return true;
   }
@@ -1233,6 +1709,10 @@ function isUsableItineraryPlace(place, destination, interests = []) {
   }
 
   if (/\b(sacred trees?|flexible|rest block|central stay|verified nearby attraction)\b/i.test(text)) {
+    return false;
+  }
+
+  if (isDishLikePlaceName(name)) {
     return false;
   }
 
@@ -1930,14 +2410,18 @@ function buildPlaceNoteLines(structuredPlan) {
       return true;
     });
 
-  return places.slice(0, 10).map((place) =>
-    `${place.name}: ${place.brief || buildPlaceBrief({
+  return places.slice(0, 10).map((place) => {
+    const brief = place.brief || buildPlaceBrief({
       name: place.name,
       type: place.type,
       destination: structuredPlan.destination,
       famousFor: place.famousFor,
-    })}`,
-  );
+    });
+    const bestTime = place.bestTime ? ` Best time: ${place.bestTime}` : "";
+    const visitDuration = place.visitDuration ? ` Time needed: ${place.visitDuration}` : "";
+
+    return `${place.name}: ${brief}${bestTime}${visitDuration}`;
+  });
 }
 
 function formatLabel(value) {

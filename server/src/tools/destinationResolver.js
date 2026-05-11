@@ -22,6 +22,8 @@ const destinationAliases = {
   nashik: "Nashik",
   ooty: "Ooty",
   udhagamandalam: "Ooty",
+  go: "Goa",
+  goa: "Goa",
 };
 
 const preferredDisplayNames = {
@@ -33,6 +35,7 @@ const preferredDisplayNames = {
   mysuru: "Mysore",
   ooty: "Ooty",
   udhagamandalam: "Ooty",
+  goa: "Goa",
   nashik: "Nashik",
   nasik: "Nashik",
 };

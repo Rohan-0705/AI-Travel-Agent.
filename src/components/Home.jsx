@@ -513,15 +513,16 @@ const Home = () => {
       }
 
       const promptDestination = promptTripContext.destination;
+      const promptDays = livePlan?.days?.length || promptTripContext.days || 3;
 
       return [
-        `Make ${promptDestination} more affordable`,
-        `Add local food stops`,
-        `Reduce transit time`,
-        `Find a calmer stay`,
+        `Make this itinerary in ${promptDestination} more affordable`,
+        `Add local food stops in ${promptDestination}`,
+        `Reduce transit time in ${promptDestination} for this ${promptDays}-day itinerary`,
+        `Find calmer stay areas in ${promptDestination}`,
       ];
     },
-    [livePlan?.destination, promptTripContext.destination],
+    [livePlan?.destination, livePlan?.days?.length, promptTripContext.destination, promptTripContext.days],
   );
 
   const handleSendMessage = (text, options = {}) => {

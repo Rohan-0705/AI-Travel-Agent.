@@ -259,7 +259,7 @@ function getToolsForIntent({
 }
 
 function normalizeUserMessage(message) {
-  return normalizeCityAliasesInText(String(message ?? ""))
+  return normalizeCityAliasesInText(normalizeContextualTypos(String(message ?? "")))
     .replace(/\bpaln\b/gi, "plan")
     .replace(/\bpln\b/gi, "plan")
     .replace(/^\s*plan\s+(?:a\s+)?([a-zA-Z][a-zA-Z\s-]+?)\s+trip\b/gi, "$1")
@@ -362,7 +362,8 @@ function isBadDestination(value) {
   const normalized = value.toLowerCase().replace(/[^a-z\s]/g, "").trim();
 
   return (
-    /^(plan|plan a|plan the|trip|itinerary|destination|your destination)$/.test(normalized) ||
+    /^(go|plan|plan a|plan the|trip|itinerary|destination|your destination)$/.test(normalized) ||
+    /\b(where|what|who|how|should|could|would|can|i|we|you|me|my|your)\b/.test(normalized) ||
     /\b(plan|itinerary)\b/.test(normalized)
   );
 }
@@ -585,14 +586,24 @@ function extractDestination(message) {
     const match = message.match(pattern)?.[1]?.trim();
 
     if (match) {
-      return titleCase(resolveCityAlias(cleanDestination(match)));
+      const candidate = resolveContextualDestinationAlias(
+        cleanDestination(match),
+        message,
+      );
+
+      if (!isBadDestination(candidate)) {
+        return titleCase(resolveCityAlias(candidate));
+      }
     }
   }
 
   const bareDestination = extractBareDestination(message);
 
   if (bareDestination) {
-    return titleCase(resolveCityAlias(bareDestination));
+    return titleCase(resolveCityAlias(resolveContextualDestinationAlias(
+      bareDestination,
+      message,
+    )));
   }
 
   const compactMessage = message.toLowerCase().replace(/\s+/g, "");
@@ -712,6 +723,23 @@ function normalizeCityAliasesInText(value) {
       current.replace(new RegExp(`\\b${alias}\\b`, "gi"), city),
     value,
   );
+}
+
+function normalizeContextualTypos(value = "") {
+  return String(value)
+    .replace(/\bgo\s+trip\b/gi, "goa trip")
+    .replace(/\btrip\s+(to|for|in)\s+go\b/gi, "trip $1 goa");
+}
+
+function resolveContextualDestinationAlias(value = "", message = "") {
+  if (
+    normalizeName(value) === "go" &&
+    /\b(go\s+trip|trip\s+(?:to|for|in)\s+go|go\s+(?:for\s+)?\d+\s*-?\s*(?:day|days|night|nights))\b/i.test(message)
+  ) {
+    return "goa";
+  }
+
+  return value;
 }
 
 function resolveCityAlias(value = "") {

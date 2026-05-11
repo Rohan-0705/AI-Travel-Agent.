@@ -44,18 +44,18 @@ const MapPanel = ({
         price: place.rating ? `${place.rating}/5` : "Save",
       }))
     : activeTrip.stays;
-  const weatherValue = livePlan?.weather?.samples?.[0]?.tempC
-    ? `${livePlan.weather.samples[0].tempC} C`
-    : activeTrip.signals[0].value;
-  const budgetValue = livePlan?.intent && livePlan.intent !== "trip_plan"
-    ? livePlan.travelAnswer?.label ?? (livePlan.intent === "food_info" ? "Food guide" : "Answer")
-    : livePlan?.cost?.formattedTotal ?? activeTrip.budget;
+  const weatherValue =
+    formatWeatherRange(livePlan?.weather) ??
+    (livePlan ? "Checked" : activeTrip.signals[0].value);
+  const budgetValue =
+    getPreviewBudgetValue(livePlan) ??
+    (livePlan ? "Estimate ready" : activeTrip.budget);
   const query = route.length ? `${destination} ${route.slice(0, 2).join(" ")}` : activeTrip.mapQuery;
   const mapSrc = `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
   const statCards = [
     { label: "Weather", value: weatherValue, icon: CloudSun, tone: "text-[#0f8f83]", surface: "bg-[#f2fbf8]" },
     { label: "Budget", value: budgetValue, icon: WalletCards, tone: "text-[#9a6100]", surface: "bg-[#fffaf0]" },
-    { label: "Pace", value: activeTrip.pace, icon: CalendarClock, tone: "text-[#c2410c]", surface: "bg-[#fff7f4]" },
+    { label: "Pace", value: getPreviewPaceValue(livePlan, activeTrip), icon: CalendarClock, tone: "text-[#c2410c]", surface: "bg-[#fff7f4]" },
     { label: "Score", value: `${activeTrip.score}/100`, icon: Star, tone: "text-[#2563eb]", surface: "bg-[#f2f6ff]" },
   ];
   const checkSignals = livePlan?.intent === "food_info"
@@ -333,5 +333,57 @@ const EmptyMapPanel = ({ drawer = false }) => {
     </aside>
   );
 };
+
+function formatWeatherRange(weather) {
+  const temps = (weather?.samples ?? [])
+    .map((sample) => Number(sample.tempC))
+    .filter(Number.isFinite);
+
+  if (!temps.length) {
+    return null;
+  }
+
+  const min = Math.min(...temps);
+  const max = Math.max(...temps);
+
+  return min === max ? `${min} C` : `${min}-${max} C`;
+}
+
+function getPreviewBudgetValue(livePlan) {
+  if (!livePlan) {
+    return null;
+  }
+
+  if (livePlan.intent === "food_info") {
+    return "Food guide";
+  }
+
+  if (livePlan.intent && livePlan.intent !== "trip_plan") {
+    return livePlan.travelAnswer?.label ?? "Answer";
+  }
+
+  return livePlan.cost?.formattedTotal ?? null;
+}
+
+function getPreviewPaceValue(livePlan, activeTrip) {
+  if (!livePlan || livePlan.intent !== "trip_plan") {
+    return activeTrip.pace;
+  }
+
+  const days = livePlan.days?.length ?? 0;
+  const stops = livePlan.days
+    ?.reduce((count, day) => count + (day.places?.length ?? 0), 0) ?? 0;
+  const averageStops = days ? stops / days : 0;
+
+  if (averageStops >= 3) {
+    return "Full";
+  }
+
+  if (averageStops <= 2) {
+    return "Easy";
+  }
+
+  return "Balanced";
+}
 
 export default MapPanel;

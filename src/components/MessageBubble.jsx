@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Bot,
   CheckCircle2,
+  Clock,
   CloudSun,
   ExternalLink,
   Info,
@@ -215,11 +216,36 @@ const StructuredPlan = ({ plan }) => {
                             {place.famousFor}
                           </p>
                         ) : null}
+                        {place.rating || place.visitDuration ? (
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {shouldShowPlaceRating(place.rating) ? (
+                              <span className="rounded bg-[#f7faf8] px-1.5 py-0.5 text-[0.66rem] font-semibold text-slate-600">
+                                {formatPlaceRatingLabel(place.rating)}
+                              </span>
+                            ) : null}
+                            {place.visitDuration ? (
+                              <span className="rounded bg-[#f7faf8] px-1.5 py-0.5 text-[0.66rem] font-semibold text-slate-600">
+                                {place.visitDuration}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     {place.brief ? (
                       <p className="mt-1.5 text-[0.78rem] leading-5 text-slate-600">
                         {place.brief}
+                      </p>
+                    ) : null}
+                    {place.bestTime ? (
+                      <p className="mt-1.5 flex items-start gap-1.5 text-[0.72rem] font-medium leading-5 text-slate-500">
+                        <Clock size={12} className="mt-1 shrink-0 text-[#0f8f83]" />
+                        <span>{place.bestTime}</span>
+                      </p>
+                    ) : null}
+                    {place.openingHint ? (
+                      <p className="mt-1 text-[0.7rem] font-medium leading-5 text-slate-500">
+                        {place.openingHint}
                       </p>
                     ) : null}
                   </div>
@@ -408,6 +434,22 @@ function stripMarkdown(value = "") {
     .replace(/[#*_>`-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function formatPlaceRatingLabel(value) {
+  const rating = Number(value);
+
+  if (!shouldShowPlaceRating(value)) {
+    return "";
+  }
+
+  return `${rating.toFixed(1)}/5 rating`;
+}
+
+function shouldShowPlaceRating(value) {
+  const rating = Number(value);
+
+  return Number.isFinite(rating) && rating >= 3.5 && rating <= 5;
 }
 
 export default MessageBubble;
